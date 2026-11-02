@@ -1,0 +1,50 @@
+# ==============================================================================
+# 版本控制排除清單 —— 防止機密資訊上傳至 GitHub
+# ==============================================================================
+
+# 套件目錄
+node_modules/
+
+# 環境變數檔 (含資料庫主機、帳號、密碼、JWT 金鑰)：一律排除，只保留範本
+.env
+.env.*
+!.env.example
+
+# 舊系統資料表結構盤點結果：含內網 Linked Server IP、資料庫名稱與資料筆數
+backend/docs/legacy-schema.json
+
+# 前端編譯產物 (由 npm run build 產生)
+backend/public/
+
+# 日誌與暫存
+*.log
+npm-debug.log*
+logs/
+tmp/
+.cache/
+
+# 憑證與金鑰檔
+*.pem
+*.key
+*.pfx
+*.p12
+*.crt
+
+# 本機資料目錄：系統日誌與管理端權限設定 (含帳號、來源 IP 與操作紀錄)
+backend/data/
+
+# 匯出檔案 (可能含學生個人資料)
+*.xls
+*.xlsx
+*.csv
+exports/
+
+# 編輯器與作業系統
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Claude Code 本機設定
+.claude/settings.local.json

@@ -1,0 +1,21 @@
+{
+  "name": "lrs-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "證照報名系統 (LRS) 重構 - Vue 3 前端，編譯產出至 backend/public",
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "build:watch": "vite build --watch --mode development"
+  },
+  "dependencies": {
+    "vue": "^3.5.44",
+    "vue-router": "^5.4.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@vitejs/plugin-vue": "^6.0.10",
+    "tailwindcss": "^4.3.3",
+    "vite": "^8.3.5"
+  }
+}

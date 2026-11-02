@@ -1,0 +1,8 @@
+node_modules/
+# 實際環境變數檔含資料庫密碼，禁止提交至版本控制
+.env
+# 前端編譯產出 (由 frontend 執行 npm run build 產生)
+public/
+
+# 系統日誌與管理端權限設定 (本機資料，可能含帳號與來源 IP)
+data/

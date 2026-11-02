@@ -1,0 +1,3 @@
+# 統一以 LF 換行儲存，避免 Windows 與 GitHub 間產生換行差異
+* text=auto eol=lf
+*.bat text eol=crlf

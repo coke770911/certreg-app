@@ -1,0 +1,33 @@
+@import "tailwindcss";
+
+/* 活力主題色票 */
+@theme {
+  --color-brand-50: #fff7ed;
+  --color-brand-100: #ffedd5;
+  --color-brand-500: #f97316;
+  --color-brand-600: #ea580c;
+  --color-brand-700: #c2410c;
+  --color-accent-500: #06b6d4;
+  --color-accent-600: #0891b2;
+  --font-sans: "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+}
+
+body {
+  @apply bg-slate-50 text-slate-800 antialiased;
+}
+
+/* 表單輸入框共用樣式 */
+@layer components {
+  .input {
+    @apply w-full rounded-xl border border-slate-200 px-4 py-2.5 outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-100;
+  }
+  .btn-outline {
+    @apply rounded-full border border-slate-200 px-4 py-1.5 text-slate-700 transition hover:border-brand-500 hover:text-brand-600;
+  }
+  .icon-btn {
+    @apply rounded-full px-2 py-1 text-slate-500 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .btn-primary {
+    @apply rounded-full bg-brand-500 px-6 py-2.5 font-bold text-white transition hover:bg-brand-600 disabled:opacity-60;
+  }
+}
