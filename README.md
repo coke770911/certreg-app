@@ -1,6 +1,6 @@
 # 證照報名系統 (certreg-app)
 
-> 目前版本：`0.1.2`（每次 push 前以 `npm run version:bump` 遞增，規則見下方「版本號」）
+> 目前版本：`0.1.3`（每次 push 前以 `npm run version:bump` 遞增，規則見下方「版本號」）
 
 將舊有 PHP 證照報名系統（`D:\project\lrs`，CodeIgniter 3）重構為 Node.js + Vue 3 架構。
 
@@ -151,6 +151,7 @@ pm2 save
   - 超過 `UserData` 欄位長度的值會截斷並記錄警告
   - `v_UserData` 讀取失敗（例如 Linked Server 斷線）時沿用既有 `UserData`，不阻擋登入；兩邊都沒有資料才顯示「找不到您的資料」
   - 同一帳號同時登入以資料列鎖定依序處理，不會重複新增
+- **報名聯絡資料記憶**：報名表的行動電話、電子郵件預設帶出 `UserData` 的 `us_phone`、`us_email`；沒有資料時改帶最近一次報名填寫的值。送出報名或修改報名時，填寫的電話與 Email 會回存至 `UserData`（只更新有變動的欄位），下次報名自動帶出。
 - **測試資料庫的 v_UserData**：可自行建立為連到校務系統的檢視表（VIEW）；`db:setup -- --reset` 偵測到檢視表時會保留不動，虛構帳號改直接寫入 `UserData`。
 - **開發環境以真實帳號測試 AD 登入**：`backend/.env` 設定 `AUTH_PROVIDER=ad` 後執行 `npm start`，以學校帳號密碼登入；失敗時伺服器主控台會顯示 `[auth]` 開頭的原因（不含密碼）。
 - **代理登入**：帳號輸入「學號/管理員帳號」並輸入管理員自己的密碼，即可代替學生報名。管理員帳號須在「權限設定」具備「代理學生登入」權限（原 `.env` 的 `ADMIN_ACCOUNTS` 已停用，首次啟動時會自動匯入）；代理登入會寫入系統日誌。

@@ -17,6 +17,35 @@ const { AppError } = require('../errors');
 
 const PAY_STATUS = { 0: '尚未繳費', 1: '已繳費', 2: '退費', 3: '免繳費' };
 
+/**
+ * 報名時填寫的電話與 Email 回存至 UserData (下次報名預設帶出)
+ * 只更新有變動的欄位；UserData 沒有此帳號時不處理 (登入時才會建立)
+ */
+async function saveContactToProfile(studentNo, { phone, email }, transaction) {
+  const user = await UserData.findOne({ where: { us_no: studentNo }, transaction });
+  if (!user) return;
+  const changes = {};
+  if (phone && (user.us_phone || '').trim() !== phone) changes.us_phone = phone;
+  if (email && (user.us_email || '').trim() !== email) changes.us_email = email;
+  if (Object.keys(changes).length > 0) await user.update(changes, { transaction });
+}
+
+/** 預設聯絡資料：以 UserData 為主，沒有資料時改用最近一次報名填寫的值 */
+async function defaultContact(user) {
+  let phone = (user.us_phone || '').trim();
+  let email = (user.us_email || '').trim();
+  if (!phone || !email) {
+    const last = await Apply.findOne({
+      where: { ap_us_no: user.us_no },
+      attributes: ['ap_us_phone', 'ap_us_email'],
+      order: [['ap_id', 'DESC']],
+    });
+    phone ||= (last?.ap_us_phone || '').trim();
+    email ||= (last?.ap_us_email || '').trim();
+  }
+  return { phone, email };
+}
+
 const fieldError = (message, field) => new AppError(400, message, field);
 const text = (v) => (typeof v === 'string' ? v.trim() : v == null ? '' : String(v).trim());
 
@@ -103,6 +132,7 @@ async function getApplyForm(examId, studentNo) {
   if (!user) throw new AppError(401, '請先登入');
 
   const existing = await findActiveApplication(examId, studentNo);
+  const contact = await defaultContact(user);
   return {
     exam,
     profile: {
@@ -112,8 +142,8 @@ async function getApplyForm(examId, studentNo) {
       sex: user.us_sex === 'M' || user.us_sex === 'F' ? user.us_sex : '',
       idNumber: user.us_id || '',
       dept: [user.us_dept, user.us_grade, user.us_class].filter((v) => v != null && v !== '').join(''),
-      phone: user.us_phone || '',
-      email: user.us_email || '',
+      phone: contact.phone,
+      email: contact.email,
     },
     application: existing ? toApplicationDto(existing) : null,
   };
@@ -166,8 +196,9 @@ async function submitApplication(examId, studentNo, input) {
       },
       { transaction }
     );
+    await saveContactToProfile(studentNo, data, transaction);
     return toApplicationDto(ap);
   });
 }
 
-module.exports = { PAY_STATUS, validateApplyInput, getApplyForm, submitApplication };
+module.exports = { PAY_STATUS, validateApplyInput, saveContactToProfile, getApplyForm, submitApplication };

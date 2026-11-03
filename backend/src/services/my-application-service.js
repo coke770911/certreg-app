@@ -13,7 +13,7 @@
 const { QueryTypes } = require('sequelize');
 const { sequelize, Apply, Registration } = require('../models');
 const { getExam } = require('./exam-service');
-const { PAY_STATUS, validateApplyInput } = require('./application-service');
+const { PAY_STATUS, validateApplyInput, saveContactToProfile } = require('./application-service');
 const { toChineseAmount, toSlipDigits } = require('./chinese-amount');
 const { AppError } = require('../errors');
 
@@ -125,6 +125,7 @@ async function updateMyApplication(id, studentNo, input) {
       },
       { transaction }
     );
+    await saveContactToProfile(studentNo, data, transaction);
     return toListItem(ap, await Registration.findByPk(ap.ap_rg_id, { transaction }));
   });
 }

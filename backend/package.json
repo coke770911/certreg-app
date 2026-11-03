@@ -1,6 +1,6 @@
 {
   "name": "lrs-backend",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "description": "證照報名系統 (LRS) 重構 - Node.js + Express 後端",
   "main": "src/server.js",
