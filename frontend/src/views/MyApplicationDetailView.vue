@@ -84,7 +84,7 @@ const message = ref('');
 const examForFields = computed(
   () =>
     detail.value.exam ?? {
-      items: [{ id: 0, name: detail.value.item }],
+      items: [{ id: detail.value.form.itemId ?? 0, name: detail.value.item }],
       requiresRegistration: false,
     }
 );

@@ -63,7 +63,7 @@ test('登入失敗次數限制：達上限封鎖，成功後清除', () => {
 
 const exam = { items: [{ id: 1, name: 'Photoshop' }, { id: 2, name: 'Illustrator' }], requiresRegistration: false };
 const validInput = {
-  item: 'Photoshop',
+  itemId: 1,
   name: '王小明',
   englishName: 'wang,siao-ming',
   sex: 'M',
@@ -83,16 +83,20 @@ test('報名表單驗證：正常資料轉大寫、未要求官網註冊時忽�
   assert.equal(validateApplyInput(validInput, { ...exam, requiresRegistration: true }).isRegistered, true);
 });
 
-test('報名表單驗證：舊資料項目名稱帶前後空白仍可報名，寫入去除空白的名稱', () => {
+test('報名表單驗證：以項目編號 (le_id) 選擇，名稱快照去除舊資料的前後空白', () => {
+  assert.equal(validateApplyInput({ ...validInput, itemId: 2 }, exam).itemId, 2);
+  assert.equal(validateApplyInput({ ...validInput, itemId: '2' }, exam).item, 'Illustrator');
   const padded = { ...exam, items: [{ id: 48, name: 'Photoshop ' }] };
-  assert.equal(validateApplyInput({ ...validInput, item: 'Photoshop ' }, padded).item, 'Photoshop');
-  assert.equal(validateApplyInput({ ...validInput, item: 'Photoshop' }, padded).item, 'Photoshop');
+  const data = validateApplyInput({ ...validInput, itemId: 48 }, padded);
+  assert.deepEqual([data.itemId, data.item], [48, 'Photoshop']);
 });
 
 test('報名表單驗證：各欄位錯誤時回報對應欄位', () => {
   const cases = [
-    [{ item: '' }, 'item'],
-    [{ item: '不屬於此考試的項目' }, 'item'],
+    [{ itemId: '' }, 'itemId'],
+    [{ itemId: 99 }, 'itemId'],
+    [{ itemId: 1.5 }, 'itemId'],
+    [{ itemId: undefined, item: 'Photoshop' }, 'itemId'],
     [{ name: ' ' }, 'name'],
     [{ englishName: '王小明' }, 'englishName'],
     [{ sex: 'X' }, 'sex'],

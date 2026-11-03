@@ -9,132 +9,150 @@
     <p v-if="loading" class="notice no-print">載入中…</p>
     <p v-else-if="error" class="notice notice-error no-print">{{ error }}</p>
 
+    <!-- 版面依舊系統 V_depositSlip.php 重現；class 一律加 slip- 前綴，避免與 Tailwind 工具類別 (如 grid、table) 衝突 -->
     <div v-else class="slip">
-      <!-- 第一聯：銀行存查 -->
-      <div class="bank">
-        <table class="side-note">
-          <tr><td colspan="2" class="no-border bottom-border">備註</td></tr>
-          <tr class="side-note-body">
-            <td class="vertical no-border">二、存入票據須俟收妥後始可抵用</td>
-            <td class="vertical no-border">一、票據、現金應分別另張填寫</td>
-          </tr>
+      <div class="slip-bank">
+        <table class="slip-table slip-side-note">
+          <tbody>
+            <tr><td colspan="2" class="slip-no-border slip-bottom-border">備註</td></tr>
+            <tr class="slip-side-note-body">
+              <td class="slip-stack slip-no-border">
+                <span v-for="(c, i) in SIDE_NOTE_2" :key="i">{{ c }}</span>
+              </td>
+              <td class="slip-stack slip-no-border">
+                <span v-for="(c, i) in SIDE_NOTE_1" :key="i">{{ c }}</span>
+              </td>
+            </tr>
+          </tbody>
         </table>
 
-        <table class="grid">
-          <tr>
-            <td colspan="17" class="no-border bottom-border header-cell">
-              <img src="/images/feib.png" alt="" height="50" />
-              <div class="small right">年　　　月　　　日</div>
-            </td>
-          </tr>
-          <tr>
-            <td rowspan="2" class="vertical-label">帳<br />號</td>
-            <td colspan="3">單位別</td>
-            <td colspan="3">科目</td>
-            <td colspan="7">編號</td>
-            <td>檢</td>
-            <td rowspan="2" class="vertical-label">戶<br />名</td>
-            <td rowspan="2" class="left payee-name">{{ slip.payee.accountName }}</td>
-            <td rowspan="2" class="copy-label">第一聯</td>
-          </tr>
-          <tr>
-            <td v-for="(d, i) in accountDigits" :key="i" class="digit" :class="digitBorder(i)">{{ d }}</td>
-          </tr>
+        <table class="slip-table slip-bank-table">
+          <tbody>
+            <tr>
+              <td colspan="17" class="slip-no-border slip-bottom-border">
+                <img src="/images/feib.png" alt="" class="slip-logo" />
+                <div class="slip-small slip-right">年　　　月　　　日</div>
+              </td>
+            </tr>
+            <tr>
+              <td rowspan="2">帳<br />號</td>
+              <td colspan="3">單位別</td>
+              <td colspan="3">科目</td>
+              <td colspan="7">編號</td>
+              <td>檢</td>
+              <td rowspan="2">戶<br />名</td>
+              <td rowspan="2" class="slip-left slip-payee">{{ slip.payee.accountName }}</td>
+              <td rowspan="2" class="slip-copy-label">第一聯</td>
+            </tr>
+            <tr>
+              <td v-for="(d, i) in accountDigits" :key="i" class="slip-account" :class="ACCOUNT_DASH[i]">{{ d }}</td>
+            </tr>
+          </tbody>
         </table>
 
-        <table class="grid">
-          <tr>
-            <td colspan="4">身分證字號/統一編號<br /><span class="small">(信用卡用)</span></td>
-            <td colspan="8"></td>
-            <td rowspan="5" class="top stamp">
-              (收訖戳記)
-              <div class="due">繳款期限：{{ formatRocDate(slip.dueDate) }}</div>
-            </td>
-            <td rowspan="5" class="copy-label top">：銀行存查</td>
-          </tr>
-          <tr>
-            <td rowspan="2" class="nt">新臺幣<br />NT$</td>
-            <td v-for="u in AMOUNT_UNITS" :key="u.key" class="money">{{ u.label }}</td>
-          </tr>
-          <tr class="amount-row">
-            <td v-for="(d, i) in slip.amountDigits" :key="i" class="money amount" :class="i % 3 === 1 ? 'dash-left dash-right' : i % 3 === 0 ? 'dash-right' : 'dash-left'">
-              {{ d }}
-            </td>
-          </tr>
-          <tr>
-            <td colspan="4">存款方式</td>
-            <td colspan="8" class="left">□現金 □轉帳 □票據______張</td>
-          </tr>
-          <tr>
-            <td colspan="12" class="left">繳款人學號：<u>{{ slip.studentNo }}</u></td>
-          </tr>
+        <table class="slip-table slip-bank-table">
+          <tbody>
+            <tr>
+              <td colspan="4">身分證字號/統一編號<br /><span class="slip-small">(信用卡用)</span></td>
+              <td colspan="8"></td>
+              <td rowspan="5" class="slip-top">
+                (收訖戳記)<br /><br /><br /><br /><br /><br />
+                <span class="slip-due">繳款期限：{{ formatRocDate(slip.dueDate) }}</span>
+              </td>
+              <td rowspan="5" class="slip-top slip-copy-label">：銀行存查</td>
+            </tr>
+            <tr>
+              <td rowspan="2" class="slip-nt">新臺幣<br />NT$</td>
+              <td v-for="u in AMOUNT_UNITS" :key="u.key" class="slip-money">{{ u.label }}</td>
+            </tr>
+            <tr class="slip-amount-row">
+              <td v-for="(d, i) in slip.amountDigits" :key="i" :class="AMOUNT_DASH[i]">{{ d }}</td>
+            </tr>
+            <tr>
+              <td colspan="4">存款方式</td>
+              <td colspan="8" class="slip-left">□現金 □轉帳 □票據______張</td>
+            </tr>
+            <tr>
+              <td colspan="12" class="slip-left">繳款人學號：<u>{{ slip.studentNo }}</u></td>
+            </tr>
+          </tbody>
         </table>
 
-        <table class="grid">
-          <tr class="machine-head">
-            <td rowspan="2" class="vertical-label">機<br />器<br />印<br />錄</td>
-            <td>分別行</td>
-            <td>櫃台機</td>
-            <td>序時編號</td>
-            <td>交易序號</td>
-            <td>櫃員</td>
-            <td>主管</td>
-            <td>日期</td>
-            <td>時間</td>
-            <td>帳號</td>
-            <td rowspan="2" class="copy-label"></td>
-          </tr>
-          <tr class="machine-body"><td colspan="9"></td></tr>
-          <tr>
-            <td colspan="4" class="left small no-border top-border">P20 / P30 / K20 / T20 / J19 二聯式</td>
-            <td colspan="6" class="left no-border top-border">主管　　　　　　　　經辦</td>
-          </tr>
+        <table class="slip-table slip-bank-table">
+          <tbody>
+            <tr class="slip-machine-head">
+              <td rowspan="2">機<br />器<br />印<br />錄</td>
+              <td>分別行</td>
+              <td>櫃台機</td>
+              <td>序時編號</td>
+              <td>交易序號</td>
+              <td>櫃員</td>
+              <td>主管</td>
+              <td>日期</td>
+              <td>時間</td>
+              <td>帳號</td>
+              <td rowspan="2" class="slip-copy-label"></td>
+            </tr>
+            <tr class="slip-machine-body"><td colspan="9"></td></tr>
+            <tr>
+              <td colspan="4" class="slip-left slip-small slip-no-border slip-top-border">
+                P20 / P30 / K20 / T20 / J19 二聯式<br />103.10(宏宇)
+              </td>
+              <td colspan="6" class="slip-left slip-no-border slip-top-border">主管　　　　　　　　經辦</td>
+            </tr>
+          </tbody>
         </table>
       </div>
+      <br />
 
-      <table class="receipt">
-        <tr>
-          <td colspan="4" class="left no-border bottom-border">第一聯　{{ slip.payee.branchName }}收款留存</td>
-        </tr>
-        <tr>
-          <td rowspan="2" class="label">繳款人</td>
-          <td class="left half">姓名：<u>{{ slip.name }}</u></td>
-          <td class="left half">學號：<u>{{ slip.studentNo }}</u></td>
-        </tr>
-        <tr>
-          <td class="left">行動電話：<u>{{ slip.phone }}</u></td>
-          <td class="left">E-Mail：<u>{{ slip.email }}</u></td>
-        </tr>
+      <!-- 第一聯：銀行收款留存 -->
+      <table class="slip-table slip-receipt">
+        <tbody>
+          <tr>
+            <td colspan="4" class="slip-left slip-no-border slip-bottom-border">第一聯　{{ slip.payee.branchName }}收款留存</td>
+          </tr>
+          <tr>
+            <td rowspan="2" class="slip-label">繳款人</td>
+            <td class="slip-left slip-half slip-hide-right slip-hide-bottom">姓名：<u>{{ slip.name }}</u></td>
+            <td class="slip-left slip-half slip-hide-bottom">學號：<u>{{ slip.studentNo }}</u></td>
+          </tr>
+          <tr>
+            <td class="slip-left slip-hide-right">行動電話：<u>{{ slip.phone }}</u></td>
+            <td class="slip-left">E-Mail：<u>{{ slip.email }}</u></td>
+          </tr>
+        </tbody>
       </table>
 
-      <hr class="cut" />
+      <hr class="slip-cut" />
 
       <!-- 第二聯：繳款人收據 -->
-      <table class="receipt">
-        <tr>
-          <td colspan="4" class="left no-border bottom-border">{{ slip.payee.accountName }}　　繳款收據</td>
-        </tr>
-        <tr>
-          <td class="label">繳款人</td>
-          <td class="left half">姓名：<u>{{ slip.name }}</u></td>
-          <td class="left half">學號：<u>{{ slip.studentNo }}</u></td>
-          <td rowspan="3" class="top stamp-small">經收單位<br />收訖戳記</td>
-        </tr>
-        <tr>
-          <td class="label">金額</td>
-          <td class="left">新台幣 <u>{{ slip.amountChinese }} 元</u>整</td>
-          <td class="left">NT$：<u>{{ amountText }}</u></td>
-        </tr>
-        <tr>
-          <td class="label">收費<br />項目</td>
-          <td colspan="2" class="left">代收「{{ slip.examName }}-{{ slip.item }}」證照認證考試報名費</td>
-        </tr>
-        <tr>
-          <td colspan="4" class="left no-border top-border">第二聯　請交繳款人自行留存</td>
-        </tr>
+      <table class="slip-table slip-receipt">
+        <tbody>
+          <tr>
+            <td colspan="4" class="slip-left slip-no-border slip-bottom-border">{{ slip.payee.accountName }}　　繳款收據</td>
+          </tr>
+          <tr>
+            <td class="slip-label">繳款人</td>
+            <td class="slip-left slip-half slip-hide-right">姓名：<u>{{ slip.name }}</u></td>
+            <td class="slip-left slip-half">學號：<u>{{ slip.studentNo }}</u></td>
+            <td rowspan="3" class="slip-top slip-stamp">經收單位<br />收訖戳記</td>
+          </tr>
+          <tr>
+            <td>金額</td>
+            <td class="slip-left slip-half">新台幣 <u>{{ slip.amountChinese }} 元</u>整</td>
+            <td class="slip-left slip-half">NT$：<u>{{ amountText }}</u></td>
+          </tr>
+          <tr>
+            <td>收費<br />項目</td>
+            <td colspan="2" class="slip-left">代收「{{ slip.examName }}-{{ slip.item }}」證照認證考試報名費</td>
+          </tr>
+          <tr>
+            <td colspan="4" class="slip-left slip-no-border slip-top-border">第二聯　請交繳款人自行留存</td>
+          </tr>
+        </tbody>
       </table>
-
-      <p class="warning">本收款收據需經{{ slip.payee.bankName }}加蓋收款戳記後始生效</p>
+      <br /><br />
+      <div class="slip-warning">本收款收據需經{{ slip.payee.bankName }}加蓋收款戳記後始生效</div>
     </div>
   </div>
 </template>
@@ -148,15 +166,21 @@ import { formatRocDate } from '@/format';
 const props = defineProps({ id: { type: String, required: true }, admin: { type: Boolean, default: false } });
 
 const AMOUNT_UNITS = ['佰', '拾', '億', '仟', '佰', '拾', '萬', '仟', '佰', '拾', '元'].map((label, key) => ({ key, label }));
+// 右側直書備註：逐字換行 (與舊系統相同，不用 writing-mode，標點位置才一致)
+const SIDE_NOTE_1 = [...'一、票據、現金應分別另張填寫'];
+const SIDE_NOTE_2 = [...'二、存入票據須俟收妥後始可抵用'];
+
+// 帳號 14 格與金額 11 格的虛線位置，與舊系統相同 (同一組內以虛線分隔，組與組之間為實線)
+const L = 'slip-dash-left';
+const R = 'slip-dash-right';
+const ACCOUNT_DASH = [[R], [R, L], [R, L], [R], [R, L], [R, L], [R], [R, L], [R, L], [R, L], [R, L], [R, L], [L], []];
+const AMOUNT_DASH = [[R], [L], [R], [L, R], [L], [R], [L, R], [L], [R], [L, R], [L]];
 
 const slip = ref(null);
 const loading = ref(true);
 const error = ref('');
 
-// 帳號 14 格，依單位別 / 科目 / 編號分組加上虛線
 const accountDigits = computed(() => slip.value.payee.accountParts.join('').split(''));
-const GROUP_ENDS = new Set([2, 5, 12]);
-const digitBorder = (i) => [i > 0 && !GROUP_ENDS.has(i - 1) && 'dash-left', !GROUP_ENDS.has(i) && i < 13 && 'dash-right'];
 
 const amountText = computed(() =>
   Number(slip.value.amount).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
@@ -193,6 +217,12 @@ const print = () => window.print();
   padding: 16px;
   color: #000;
 }
+/* 繳費單固定寬度 (與舊系統相同)，窄螢幕改為左右捲動 */
+@media (max-width: 800px) {
+  .slip-page {
+    overflow-x: auto;
+  }
+}
 .toolbar {
   max-width: 760px;
   margin: 0 auto 16px;
@@ -226,148 +256,154 @@ const print = () => window.print();
   color: #e11d48;
 }
 
-/* 繳費單本體：固定寬度，與舊系統一致；窄螢幕可左右捲動 */
+/*
+ * 繳費單本體：尺寸、字型與框線沿用舊系統 V_depositSlip.php。
+ * 網站全域的 Tailwind 基礎樣式 (box-sizing、行高、img) 會改變表格尺寸，這裡還原為瀏覽器預設。
+ */
 .slip {
+  box-sizing: content-box;
   width: 720px;
   margin: 0 auto;
-  background: #fff;
   padding: 20px;
+  background: #fff;
   font-family: 'DFKai-SB', 'BiauKai', '標楷體', 'Kaiti TC', serif;
   font-size: 16px;
-  overflow-x: auto;
+  line-height: normal;
 }
-@media (max-width: 760px) {
-  .slip-page {
-    overflow-x: auto;
-  }
+.slip :deep(*) {
+  box-sizing: content-box;
 }
-.bank {
-  width: 680px;
+.slip-bank {
+  width: 720px;
 }
-table {
+.slip-table {
+  /* 舊系統對 table 與 td 都設了黑框；隱藏的框線以白色覆蓋，外框因此在右側留下括號狀的線，一併重現 */
+  border: 1px solid #000;
   border-collapse: collapse;
   text-align: center;
+  font-size: 16px;
+  font-family: inherit;
 }
-td {
+.slip-table td {
   border: 1px solid #000;
-  padding: 2px;
+  padding: 1px;
 }
-.grid {
-  width: 650px;
+.slip-bank-table {
+  width: 680px;
 }
-.side-note {
-  float: right;
-  width: 20px;
-}
-.side-note-body {
-  height: 200px;
-}
-.vertical {
-  writing-mode: vertical-rl;
-  vertical-align: top;
-  width: 10px;
-  font-size: 14px;
-}
-.vertical-label {
-  width: 24px;
-}
-.no-border {
-  border: 1px solid transparent;
-}
-.bottom-border {
-  border-bottom: 1px solid #000;
-}
-.top-border {
-  border-top: 1px solid #000;
-}
-.header-cell {
-  text-align: left;
-}
-/* Tailwind 基礎樣式會將 img 設為 height:auto，需明確指定 */
-.header-cell img {
-  height: 50px;
-  width: auto;
-  display: inline-block;
-}
-.small {
-  font-size: 12px;
-}
-.right {
-  text-align: right;
-}
-.left {
-  text-align: left;
-}
-.top {
-  vertical-align: top;
-}
-.payee-name {
-  font-size: 18px;
-  font-weight: 700;
-}
-.copy-label {
-  width: 20px;
-  border: 1px solid transparent;
-  border-left: 1px solid #000;
-  writing-mode: vertical-rl;
-}
-.digit {
-  width: 20px;
-}
-.money {
-  width: 30px;
-}
-.amount-row {
-  height: 40px;
-}
-.amount {
-  font-size: 18px;
-}
-.nt {
-  width: 70px;
-}
-.dash-left {
-  border-left: 1px dashed #000;
-}
-.dash-right {
-  border-right: 1px dashed #000;
-}
-.stamp {
-  width: 150px;
-}
-.due {
-  margin-top: 90px;
-  font-size: 14px;
-}
-.machine-head {
-  height: 30px;
-}
-.machine-body {
-  height: 100px;
-}
-.receipt {
+.slip-receipt {
   width: 710px;
-  margin-top: 16px;
   line-height: 30px;
 }
-.receipt .label {
+
+/* 右側直書備註 */
+.slip-side-note {
+  float: right;
+  width: 10px;
+}
+.slip-side-note-body {
+  height: 200px;
+}
+.slip-stack {
+  width: 10px;
+  vertical-align: text-top;
+}
+.slip-stack span {
+  display: block;
+}
+
+.slip-logo {
+  display: inline;
+  height: 50px;
+  width: auto;
+  max-width: none;
+  vertical-align: baseline;
+}
+.slip-small {
+  font-size: 12px;
+}
+.slip-right {
+  text-align: right;
+}
+.slip-left {
+  text-align: left;
+}
+.slip-top {
+  vertical-align: text-top;
+}
+.slip-payee {
+  font-size: 20px;
+  font-weight: 700;
+}
+.slip-copy-label {
+  width: 20px;
+}
+.slip-account {
+  width: 20px;
+}
+.slip-money {
+  width: 30px;
+}
+.slip-nt {
   width: 70px;
 }
-.receipt .half {
+.slip-amount-row {
+  height: 40px;
+}
+.slip-due {
+  font-size: 14px;
+}
+.slip-machine-head {
+  height: 30px;
+}
+.slip-machine-body {
+  height: 100px;
+}
+.slip-label {
+  width: 70px;
+}
+.slip-half {
   width: 233px;
 }
-.stamp-small {
+.slip-stamp {
   width: 100px;
 }
-.cut {
+
+/* 框線：無框、只留上／下框、白色隱藏框，對應舊系統的 border: 1px solid #FFF 寫法 */
+.slip-table td.slip-copy-label {
+  border-color: #fff;
+  border-left-color: #000;
+}
+.slip-table td.slip-no-border {
+  border-color: #fff;
+}
+.slip-table td.slip-bottom-border {
+  border-bottom-color: #000;
+}
+.slip-table td.slip-top-border {
+  border-top-color: #000;
+}
+.slip-table td.slip-hide-right {
+  border-right-color: #fff;
+}
+.slip-table td.slip-hide-bottom {
+  border-bottom-color: #fff;
+}
+.slip-table td.slip-dash-left {
+  border-left: 1px dashed #000;
+}
+.slip-table td.slip-dash-right {
+  border-right: 1px dashed #000;
+}
+
+.slip-cut {
   border: 0;
   border-top: 1px dashed #000;
-  margin: 16px 0;
+  margin: 8px 0;
 }
-.warning {
+.slip-warning {
   text-align: right;
   color: #f00;
-  margin-top: 24px;
 }
 
 @media print {
@@ -382,9 +418,10 @@ td {
     padding: 0;
     margin: 0;
   }
+  /* A4 寬 210mm，左右各留 8mm，可容納 720px (約 190.5mm) 的繳費單不需縮放 */
   @page {
     size: A4 portrait;
-    margin: 10mm;
+    margin: 8mm;
   }
 }
 </style>

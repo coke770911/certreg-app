@@ -80,6 +80,8 @@ const Apply = sequelize.define(
     ap_rg_id: { type: DataTypes.INTEGER, allowNull: false },
     ap_rg_name: { type: DataTypes.STRING(255), allowNull: false },
     ap_le_name: { type: DataTypes.STRING(50), allowNull: false },
+    // 新增欄位 (正式資料庫需手動補上，見 database/pending-production-changes.sql)：報名的證照項目編號 (License.le_id)
+    ap_le_id: { type: DataTypes.INTEGER, allowNull: true },
     ap_rg_money: { type: DataTypes.INTEGER, allowNull: false },
     ap_us_no: { type: DataTypes.STRING(20), allowNull: false },
     ap_us_name: { type: DataTypes.STRING(50), allowNull: false },

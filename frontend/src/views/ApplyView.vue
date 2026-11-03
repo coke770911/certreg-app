@@ -122,7 +122,7 @@ watch(
       application.value = data.application;
       Object.assign(form, {
         ...data.profile,
-        item: data.exam.items.length === 1 ? data.exam.items[0].name : '',
+        itemId: data.exam.items.length === 1 ? data.exam.items[0].id : null,
         isRegistered: false,
         memo: '',
       });

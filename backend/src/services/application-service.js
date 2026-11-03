@@ -24,9 +24,10 @@ const text = (v) => (typeof v === 'string' ? v.trim() : v == null ? '' : String(
 function validateApplyInput(input, exam) {
   const data = input || {};
 
-  const item = text(data.item);
-  // 比對時忽略前後空白 (舊資料項目名稱可能帶空白，SQL Server 比對字串時亦忽略結尾空白)
-  if (!item || !exam.items.some((i) => text(i.name) === item)) throw fieldError('請選擇考試項目!', 'item');
+  // 以證照項目編號 (le_id) 選擇，必須是該場考試的項目
+  const itemId = Number(data.itemId);
+  const selected = Number.isInteger(itemId) ? exam.items.find((i) => i.id === itemId) : null;
+  if (!selected) throw fieldError('請選擇考試項目!', 'itemId');
 
   const name = text(data.name);
   if (!name) throw fieldError('請輸入姓名!', 'name');
@@ -61,7 +62,9 @@ function validateApplyInput(input, exam) {
   if (memo.length > 120) throw fieldError('備註最多 120 字', 'memo');
 
   return {
-    item,
+    itemId: selected.id,
+    // 報名當下的項目名稱快照 (去除舊資料的前後空白，與舊系統寫入一致)
+    item: text(selected.name),
     name,
     englishName,
     sex,
@@ -79,6 +82,7 @@ function toApplicationDto(ap) {
     id: ap.ap_id,
     examId: ap.ap_rg_id,
     examName: ap.ap_rg_name,
+    itemId: ap.ap_le_id ?? null,
     item: ap.ap_le_name,
     fee: ap.ap_rg_money,
     payStatus: PAY_STATUS[ap.ap_is_pay ?? '0'] ?? PAY_STATUS[0],
@@ -144,6 +148,7 @@ async function submitApplication(examId, studentNo, input) {
       {
         ap_rg_id: rg.rg_id,
         ap_rg_name: rg.rg_name,
+        ap_le_id: data.itemId,
         ap_le_name: data.item,
         ap_rg_money: rg.rg_money,
         ap_us_no: studentNo,

@@ -2,13 +2,13 @@
   <fieldset :disabled="readonly" class="space-y-6">
     <fieldset>
       <legend class="mb-3 font-bold text-slate-800">考試項目 <span class="text-rose-500">*</span></legend>
-      <div class="grid gap-2 sm:grid-cols-2" :class="ring('item')">
+      <div id="itemId" tabindex="-1" class="grid gap-2 sm:grid-cols-2" :class="ring('itemId')">
         <label
           v-for="item in exam.items"
           :key="item.id"
           class="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 transition has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50"
         >
-          <input v-model="form.item" type="radio" name="item" :value="item.name" class="accent-brand-500" />
+          <input v-model="form.itemId" type="radio" name="itemId" :value="item.id" class="accent-brand-500" />
           <span class="text-slate-700">{{ item.name }}</span>
         </label>
       </div>

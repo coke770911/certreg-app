@@ -13,6 +13,7 @@ const { sequelize } = require('../models');
 // 新增需要的欄位時，同步更新 pending-production-changes.sql 與 test-schema.sql
 const REQUIRED_COLUMNS = [
   { table: 'LicenseGroup', column: 'lg_is_hidden', purpose: '證照分類隱藏' },
+  { table: 'Apply', column: 'ap_le_id', purpose: '報名紀錄的證照項目編號' },
 ];
 
 /** 回傳目前資料庫缺少的欄位 */

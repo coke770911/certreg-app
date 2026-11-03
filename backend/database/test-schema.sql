@@ -63,7 +63,9 @@ CREATE TABLE [dbo].[Apply] (
   [ap_is_pay]     NCHAR(1)      NULL DEFAULT ((0)),
   [ap_scorePass]  BIT           NULL DEFAULT ((0)),
   [ap_createDate] DATETIME      NULL DEFAULT (getdate()),
-  [ap_modifyDate] DATETIME      NULL DEFAULT (getdate())
+  [ap_modifyDate] DATETIME      NULL DEFAULT (getdate()),
+  -- 新增欄位 (正式資料庫待補，見 pending-production-changes.sql)：報名的證照項目編號 (License.le_id)
+  [ap_le_id]      INT           NULL
 );
 
 CREATE TABLE [dbo].[UserData] (

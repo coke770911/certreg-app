@@ -77,6 +77,8 @@ async function getMyApplication(id, studentNo) {
       englishName: ap.ap_us_ename,
       sex: ap.ap_us_sex,
       idNumber: ap.ap_us_id,
+      // 舊紀錄沒有項目編號時，以名稱 (忽略前後空白) 對應該場考試的項目
+      itemId: ap.ap_le_id ?? exam?.items.find((i) => i.name === String(ap.ap_le_name ?? '').trim())?.id ?? null,
       item: ap.ap_le_name,
       dept: ap.ap_us_cdept,
       phone: ap.ap_us_phone,
@@ -111,6 +113,7 @@ async function updateMyApplication(id, studentNo, input) {
 
     await ap.update(
       {
+        ap_le_id: data.itemId,
         ap_le_name: data.item,
         ap_us_ename: data.englishName,
         ap_us_cdept: data.dept,

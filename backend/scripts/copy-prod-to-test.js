@@ -136,6 +136,9 @@ async function main() {
       console.log(`${same ? '✔' : '✖'} ${table.padEnd(14)} ${copied.length} 筆${same ? '' : '，內容與正式資料不一致'}`);
     }
     if (!ok) process.exitCode = 1;
+    // 測試庫新增的欄位 (正式庫尚無) 維持預設值，需再回填
+    else console.log('
+如測試庫有正式庫尚未補上的欄位，請再執行 npm run db:migrate-test 回填資料。');
   } catch (err) {
     console.error(`✖ 複製失敗 (測試資料庫已還原)：${err.message}`);
     process.exitCode = 1;
