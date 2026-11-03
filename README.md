@@ -1,5 +1,7 @@
 # 證照報名系統 (certreg-app)
 
+> 目前版本：`0.1.1`（每次 push 前以 `npm run version:bump` 遞增，規則見下方「版本號」）
+
 將舊有 PHP 證照報名系統（`D:\project\lrs`，CodeIgniter 3）重構為 Node.js + Vue 3 架構。
 
 ## 技術架構
@@ -19,6 +21,7 @@
 certreg-app/
 ├─ package.json            根目錄指令（安裝、編譯、啟動）
 ├─ ecosystem.config.js     PM2 常駐執行設定（正式機用）
+├─ scripts/bump-version.js 版本號遞增（每次 push 前執行）
 ├─ frontend/               Vue 3 原始碼（只負責編譯）
 │  ├─ vite.config.js       編譯輸出至 ../backend/public
 │  └─ src/
@@ -83,6 +86,7 @@ certreg-app/
 | `npm run build` | 編譯前端至 `backend/public` |
 | `npm start` | 啟動後端（網站 + API） |
 | `npm run deploy` | 編譯前端後啟動後端 |
+| `npm run version:bump` | 版本號遞增（每次 push 前執行；`-- --dry-run` 只預覽） |
 | `npm run dev` | 開發模式：前端變更自動重新編譯、後端變更自動重啟，仍只使用單一 PORT |
 | `npm --prefix backend test` | 執行後端測試（含正式環境鎖定測試） |
 | `npm --prefix backend run db:check` | 唯讀驗證資料庫連線與帳號權限 |
@@ -109,6 +113,15 @@ pm2 save
 - 關閉時程式會先寫入「伺服器關閉」日誌再結束；Windows 上 PM2 以 `shutdown` 訊息通知（`shutdown_with_message`），最多等 10 秒。
 - 啟動 10 秒內就結束（例如 `.env` 設定錯誤）視為失敗，連續 10 次即停止重試，請用 `pm2 logs` 查看原因。
 - 開機自動啟動：Linux 用 `pm2 startup`；Windows 可搭配 `pm2-installer` 或工作排程器執行 `pm2 resurrect`。
+
+## 版本號
+
+版本格式為 `x.y.z`，**每次 push 到 GitHub 前**執行 `npm run version:bump` 遞增一次（`-- --dry-run` 只預覽）：
+
+- `z` 每次 +1；`z` 超過 30 時歸零、`y` +1；`y` 超過 20 時歸零、`x` +1。例：`0.1.30` → `0.2.0`、`0.20.30` → `1.0.0`。
+- 會同步更新根目錄、`backend`、`frontend` 的 `package.json` 與 `package-lock.json`，以及本文件開頭的「目前版本」。三份 `package.json` 版本不一致時會拒絕執行。
+- 「系統資訊」頁顯示的版本即 `backend/package.json` 的版本。
+- push 順序：遞增版本號 → 更新 README → 提交 → push。
 
 ## 環境變數
 

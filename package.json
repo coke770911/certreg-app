@@ -1,6 +1,6 @@
 {
   "name": "certreg-app",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "證照報名系統 (LRS) 重構 - 單一通訊埠：前端編譯為靜態檔案，由後端 Express 提供",
   "scripts": {
@@ -8,7 +8,8 @@
     "build": "npm --prefix frontend run build",
     "start": "npm --prefix backend start",
     "deploy": "npm run build && npm start",
-    "dev": "concurrently -k -n web,api -c magenta,cyan \"npm --prefix frontend run build:watch\" \"npm --prefix backend run dev\""
+    "dev": "concurrently -k -n web,api -c magenta,cyan \"npm --prefix frontend run build:watch\" \"npm --prefix backend run dev\"",
+    "version:bump": "node scripts/bump-version.js"
   },
   "devDependencies": {
     "concurrently": "^10.0.6"
