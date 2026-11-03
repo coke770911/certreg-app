@@ -83,6 +83,12 @@ test('報名表單驗證：正常資料轉大寫、未要求官網註冊時忽�
   assert.equal(validateApplyInput(validInput, { ...exam, requiresRegistration: true }).isRegistered, true);
 });
 
+test('報名表單驗證：舊資料項目名稱帶前後空白仍可報名，寫入去除空白的名稱', () => {
+  const padded = { ...exam, items: [{ id: 48, name: 'Photoshop ' }] };
+  assert.equal(validateApplyInput({ ...validInput, item: 'Photoshop ' }, padded).item, 'Photoshop');
+  assert.equal(validateApplyInput({ ...validInput, item: 'Photoshop' }, padded).item, 'Photoshop');
+});
+
 test('報名表單驗證：各欄位錯誤時回報對應欄位', () => {
   const cases = [
     [{ item: '' }, 'item'],

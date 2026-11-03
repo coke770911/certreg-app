@@ -42,7 +42,7 @@ function toAdminExamDto(rg, now = new Date()) {
     creator: rg.rg_creator,
     isOpen: !rg.rg_is_del && rg.rg_applyEndDate > now,
     canEdit: rg.rg_endDate >= now,
-    items: (rg.items || []).map((le) => ({ id: le.le_id, name: le.le_name })).sort((a, b) => a.id - b.id),
+    items: (rg.items || []).map((le) => ({ id: le.le_id, name: text(le.le_name) })).sort((a, b) => a.id - b.id),
   };
 }
 
@@ -221,7 +221,7 @@ async function listLicenseGroups() {
     id: g.lg_id,
     name: g.lg_name,
     hidden: Boolean(g.lg_is_hidden),
-    items: licenses.filter((le) => le.le_group === g.lg_id).map((le) => ({ id: le.le_id, name: le.le_name })),
+    items: licenses.filter((le) => le.le_group === g.lg_id).map((le) => ({ id: le.le_id, name: text(le.le_name) })),
   }));
 }
 
@@ -378,7 +378,8 @@ async function updateLicense(id, input = {}) {
     // 留在原分類 (即使已隱藏) 可以改名；移到其他分類時目標不可為隱藏分類
     if (groupId !== le.le_group) await assertGroupUsable(groupId, 'editItemGroup', transaction);
     await assertLicenseNameFree(groupId, name, le.le_id, 'editItemName', transaction);
-    if (name !== le.le_name) await assertNotInUnfinishedExam(le.le_id, '修改名稱', transaction);
+    // 舊資料名稱可能帶前後空白，只去除空白不算改名
+    if (name !== text(le.le_name)) await assertNotInUnfinishedExam(le.le_id, '修改名稱', transaction);
     const before = { name: le.le_name, groupId: le.le_group };
     await le.update({ le_name: name, le_group: groupId }, { transaction });
     return { id: le.le_id, name, groupId, before };

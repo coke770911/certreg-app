@@ -37,7 +37,8 @@ function toExamDto(rg) {
     isOpen: rg.rg_applyEndDate > now,
     isFull: appliedCount >= rg.rg_number,
     items: (rg.items || [])
-      .map((le) => ({ id: le.le_id, name: le.le_name }))
+      // 部分舊資料的項目名稱帶有前後空白 (如「Photoshop 」)，舊系統寫入報名時為去除空白的名稱
+      .map((le) => ({ id: le.le_id, name: String(le.le_name ?? '').trim() }))
       .sort((a, b) => a.id - b.id),
   };
 }

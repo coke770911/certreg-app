@@ -25,7 +25,8 @@ function validateApplyInput(input, exam) {
   const data = input || {};
 
   const item = text(data.item);
-  if (!item || !exam.items.some((i) => i.name === item)) throw fieldError('請選擇考試項目!', 'item');
+  // 比對時忽略前後空白 (舊資料項目名稱可能帶空白，SQL Server 比對字串時亦忽略結尾空白)
+  if (!item || !exam.items.some((i) => text(i.name) === item)) throw fieldError('請選擇考試項目!', 'item');
 
   const name = text(data.name);
   if (!name) throw fieldError('請輸入姓名!', 'name');
