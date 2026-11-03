@@ -54,9 +54,17 @@ process.on('uncaughtException', (err) => {
   flushLogs().finally(() => process.exit(1));
 });
 
+let shuttingDown = false;
 const shutdown = () => {
+  // 訊號與 PM2 關閉訊息可能同時送達，只處理一次
+  if (shuttingDown) return;
+  shuttingDown = true;
   writeLog({ category: 'system', action: '伺服器關閉' });
   flushLogs().finally(() => server.close(() => process.exit(0)));
 };
 process.on('SIGINT', shutdown);
 process.on('SIGTERM', shutdown);
+// PM2 在 Windows 以訊息通知關閉 (ecosystem.config.js 的 shutdown_with_message)
+process.on('message', (msg) => {
+  if (msg === 'shutdown') shutdown();
+});

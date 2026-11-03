@@ -18,6 +18,7 @@
 ```
 certreg-app/
 ├─ package.json            根目錄指令（安裝、編譯、啟動）
+├─ ecosystem.config.js     PM2 常駐執行設定（正式機用）
 ├─ frontend/               Vue 3 原始碼（只負責編譯）
 │  ├─ vite.config.js       編譯輸出至 ../backend/public
 │  └─ src/
@@ -89,6 +90,25 @@ certreg-app/
 | `npm --prefix backend run db:inspect` | 以唯讀方式盤點正式資料庫的資料表結構 |
 | `npm --prefix backend run db:migrate-test` | 將 `backend/database/pending-production-changes.sql` 套用到測試資料庫（以 `GO` 分段、可重複執行，含舊資料回填；正式環境拒絕執行）。`db:copy-prod` 之後需再執行一次 |
 | `npm --prefix backend run db:copy-prod` | 預覽正式／測試資料庫各表筆數；加 `-- --yes` 會清空測試資料表，改寫入正式資料（正式庫只 SELECT；單一交易、保留原編號、寫入後逐筆比對；不複製 v_UserData）。複製後測試庫含真實個資，請勿外流 |
+
+## 以 PM2 常駐執行（正式機）
+
+設定檔為根目錄的 `ecosystem.config.js`，啟動的是 `backend/src/server.js`；所有設定（含 `APP_ENV`、`PORT`）一律讀取 `backend/.env`，PM2 設定裡不另外指定環境變數。
+
+```bash
+npm install -g pm2
+npm run setup
+npm run build
+pm2 start ecosystem.config.js
+pm2 save
+```
+
+- 更新程式後：前端有改先 `npm run build`，再 `pm2 restart certreg-app`。
+- 查看輸出：`pm2 logs certreg-app`；PM2 的輸出檔在根目錄 `logs/`（不提交版控），系統日誌仍在 `backend/data/logs/`。
+- **只能單一程序**（`exec_mode: fork`、`instances: 1`）：系統日誌與權限設定寫入本機檔案、登入失敗次數記在記憶體，開多個程序會互相衝突。
+- 關閉時程式會先寫入「伺服器關閉」日誌再結束；Windows 上 PM2 以 `shutdown` 訊息通知（`shutdown_with_message`），最多等 10 秒。
+- 啟動 10 秒內就結束（例如 `.env` 設定錯誤）視為失敗，連續 10 次即停止重試，請用 `pm2 logs` 查看原因。
+- 開機自動啟動：Linux 用 `pm2 startup`；Windows 可搭配 `pm2-installer` 或工作排程器執行 `pm2 resurrect`。
 
 ## 環境變數
 
