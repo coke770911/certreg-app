@@ -13,20 +13,19 @@
 const { Op, literal } = require('sequelize');
 const { sequelize, Registration, License, LicenseGroup, LinkRgLe } = require('../models');
 const { AppError } = require('../errors');
+const { itemsInclude } = require('./exam-service');
+const { loadPrices, priceOf, feeSummary, parsePrices, replacePrices } = require('./exam-price');
 
 const appliedCount = [
   literal('(SELECT COUNT(*) FROM [dbo].[Apply] WHERE [Apply].[ap_rg_id] = [Registration].[rg_id] AND [Apply].[ap_is_del] = 0)'),
   'appliedCount',
 ];
 
-const itemsInclude = {
-  model: License,
-  as: 'items',
-  attributes: ['le_id', 'le_name'],
-  through: { attributes: [] },
-};
-
-function toAdminExamDto(rg, now = new Date()) {
+/** prices 為 loadPrices 的結果；各項目附原價、另外設定的原價 (null 表示沿用考試費用) 與方案 */
+function toAdminExamDto(rg, prices, now = new Date()) {
+  const items = (rg.items || [])
+    .map((le) => ({ id: le.le_id, name: text(le.le_name), ...priceOf(prices, rg, le.le_id) }))
+    .sort((a, b) => a.id - b.id);
   return {
     id: rg.rg_id,
     name: rg.rg_name,
@@ -34,6 +33,7 @@ function toAdminExamDto(rg, now = new Date()) {
     endDate: rg.rg_endDate,
     applyEndDate: rg.rg_applyEndDate,
     fee: rg.rg_money,
+    ...feeSummary(items, rg.rg_money),
     capacity: rg.rg_number,
     appliedCount: Number(rg.get('appliedCount') ?? 0),
     requiresRegistration: Boolean(rg.rg_is_regi),
@@ -42,7 +42,7 @@ function toAdminExamDto(rg, now = new Date()) {
     creator: rg.rg_creator,
     isOpen: !rg.rg_is_del && rg.rg_applyEndDate > now,
     canEdit: rg.rg_endDate >= now,
-    items: (rg.items || []).map((le) => ({ id: le.le_id, name: text(le.le_name) })).sort((a, b) => a.id - b.id),
+    items,
   };
 }
 
@@ -54,13 +54,14 @@ async function listAllExams() {
     order: [['rg_id', 'DESC']],
   });
   const now = new Date();
-  return rows.map((rg) => toAdminExamDto(rg, now));
+  const prices = await loadPrices(rows.map((rg) => rg.rg_id));
+  return rows.map((rg) => toAdminExamDto(rg, prices, now));
 }
 
 async function getAdminExam(id) {
   const rg = await Registration.findByPk(id, { attributes: { include: [appliedCount] }, include: [itemsInclude] });
   if (!rg) throw new AppError(404, '找不到此考試');
-  return toAdminExamDto(rg);
+  return toAdminExamDto(rg, await loadPrices([rg.rg_id]));
 }
 
 // ---------- 輸入檢查 ----------
@@ -174,6 +175,7 @@ async function createExam(input, creator) {
       data.itemIds.map((le) => ({ lk_rg_id: rg.rg_id, lk_le_id: le })),
       { transaction }
     );
+    await replacePrices(rg.rg_id, parsePrices(input.prices, data.itemIds, data.fee), transaction);
     return rg.rg_id;
   });
 }
@@ -198,6 +200,11 @@ async function updateExam(id, input) {
       },
       { transaction }
     );
+    // 調整原價與優惠方案：只影響之後的報名，已報名者的應繳金額為報名當下的快照，不會變動
+    if (input.prices !== undefined) {
+      const links = await LinkRgLe.findAll({ where: { lk_rg_id: rg.rg_id }, transaction });
+      await replacePrices(rg.rg_id, parsePrices(input.prices, links.map((l) => l.lk_le_id), data.fee), transaction);
+    }
   });
 }
 

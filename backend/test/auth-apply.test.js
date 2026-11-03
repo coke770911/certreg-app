@@ -61,7 +61,17 @@ test('登入失敗次數限制：達上限封鎖，成功後清除', () => {
   assert.equal(limiter.isBlocked(ip, 'user'), false);
 });
 
-const exam = { items: [{ id: 1, name: 'Photoshop' }, { id: 2, name: 'Illustrator' }], requiresRegistration: false };
+// 項目的 plans 第一個固定為原價 (見 services/exam-price.js 的 priceOf)
+const item = (id, name, price, discounts = []) => ({
+  id,
+  name,
+  price,
+  plans: [{ name: '原價', price, discount: false }, ...discounts.map(([n, p]) => ({ name: n, price: p, discount: true }))],
+});
+const exam = {
+  items: [item(1, 'Photoshop', 2300, [['本校生優惠', 1800]]), item(2, 'Illustrator', 2300)],
+  requiresRegistration: false,
+};
 const validInput = {
   itemId: 1,
   name: '王小明',
@@ -86,9 +96,17 @@ test('報名表單驗證：正常資料轉大寫、未要求官網註冊時忽�
 test('報名表單驗證：以項目編號 (le_id) 選擇，名稱快照去除舊資料的前後空白', () => {
   assert.equal(validateApplyInput({ ...validInput, itemId: 2 }, exam).itemId, 2);
   assert.equal(validateApplyInput({ ...validInput, itemId: '2' }, exam).item, 'Illustrator');
-  const padded = { ...exam, items: [{ id: 48, name: 'Photoshop ' }] };
+  const padded = { ...exam, items: [item(48, 'Photoshop ', 2300)] };
   const data = validateApplyInput({ ...validInput, itemId: 48 }, padded);
   assert.deepEqual([data.itemId, data.item], [48, 'Photoshop']);
+});
+
+test('報名表單驗證：收費方案決定應繳金額，原價的方案名稱為 null', () => {
+  const base = validateApplyInput(validInput, exam);
+  assert.deepEqual([base.price, base.discount], [2300, null]);
+  assert.deepEqual([validateApplyInput({ ...validInput, discount: '原價' }, exam).discount], [null]);
+  const discounted = validateApplyInput({ ...validInput, discount: ' 本校生優惠 ' }, exam);
+  assert.deepEqual([discounted.price, discounted.discount], [1800, '本校生優惠']);
 });
 
 test('報名表單驗證：各欄位錯誤時回報對應欄位', () => {
@@ -97,6 +115,8 @@ test('報名表單驗證：各欄位錯誤時回報對應欄位', () => {
     [{ itemId: 99 }, 'itemId'],
     [{ itemId: 1.5 }, 'itemId'],
     [{ itemId: undefined, item: 'Photoshop' }, 'itemId'],
+    [{ discount: '不存在的方案' }, 'discount'],
+    [{ itemId: 2, discount: '本校生優惠' }, 'discount'],
     [{ name: ' ' }, 'name'],
     [{ englishName: '王小明' }, 'englishName'],
     [{ sex: 'X' }, 'sex'],

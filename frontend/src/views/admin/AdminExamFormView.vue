@@ -89,6 +89,67 @@
           </div>
         </div>
 
+        <div v-if="priceItems.length">
+          <p class="mb-1 text-sm font-medium text-slate-700">各項目費用與優惠方案 (元)</p>
+          <p class="mb-2 text-xs text-slate-500">
+            原價留空表示沿用考試費用。優惠方案由學生報名時自選，承辦人員收費前核對資格。修改後只影響之後的報名，已報名者金額不變。
+          </p>
+          <div class="space-y-3">
+            <div
+              v-for="item in priceItems"
+              :key="item.id"
+              class="rounded-xl border border-slate-200 p-3"
+            >
+              <div class="flex flex-wrap items-center gap-3">
+                <span class="min-w-0 flex-1 font-medium text-slate-700">{{ item.name }}</span>
+                <label :for="`price-${item.id}`" class="text-sm text-slate-500">原價</label>
+                <input
+                  :id="`price-${item.id}`"
+                  v-model="form.prices[item.id].base"
+                  inputmode="numeric"
+                  class="input w-28 py-1.5 text-right"
+                  :class="ring(`price-${item.id}`)"
+                  :placeholder="form.fee === '' ? '考試費用' : form.fee"
+                />
+              </div>
+              <div
+                v-for="(d, i) in form.prices[item.id].discounts"
+                :key="i"
+                class="mt-2 flex flex-wrap items-center gap-2 pl-4"
+              >
+                <input
+                  :id="`discount-${item.id}-${i}-name`"
+                  v-model="d.name"
+                  maxlength="50"
+                  class="input min-w-0 flex-1 py-1.5 text-sm"
+                  :class="ring(`discount-${item.id}-${i}-name`)"
+                  placeholder="優惠方案名稱，例如：本校生優惠"
+                  aria-label="優惠方案名稱"
+                />
+                <input
+                  :id="`discount-${item.id}-${i}-price`"
+                  v-model="d.price"
+                  inputmode="numeric"
+                  class="input w-28 py-1.5 text-right text-sm"
+                  :class="ring(`discount-${item.id}-${i}-price`)"
+                  placeholder="費用"
+                  aria-label="優惠方案費用"
+                />
+                <button
+                  type="button"
+                  class="icon-btn text-rose-500"
+                  @click="form.prices[item.id].discounts.splice(i, 1)"
+                >移除</button>
+              </div>
+              <button
+                type="button"
+                class="mt-2 ml-4 text-sm text-accent-600 hover:underline"
+                @click="form.prices[item.id].discounts.push({ name: '', price: '' })"
+              >＋ 新增優惠方案</button>
+            </div>
+          </div>
+        </div>
+
         <div class="grid gap-4 sm:grid-cols-2">
           <fieldset>
             <legend class="mb-2 text-sm font-medium text-slate-700">是否需官網註冊</legend>
@@ -148,6 +209,8 @@ const emptyForm = () => ({
   itemIds: [],
   capacity: '',
   fee: '',
+  // { 項目編號: { base: 原價 (空字串表示沿用考試費用), discounts: [{ name, price }] } }
+  prices: {},
   startDate: '',
   endDate: '',
   applyEndDate: '',
@@ -163,6 +226,16 @@ const visibleGroups = computed(() => groups.value.filter((g) => !g.hidden));
 const currentGroup = computed(() => groups.value.find((g) => g.id === groupId.value));
 const allItems = computed(() => groups.value.flatMap((g) => g.items));
 const selectedItems = computed(() => allItems.value.filter((i) => form.itemIds.includes(i.id)));
+// 可設定費用的項目：新增時為已勾選的項目，修改時為考試既有的項目 (項目本身不可修改)
+const priceItems = computed(() => (isCreate.value ? selectedItems.value : exam.value?.items ?? []));
+// 新勾選的項目補上空白的價格設定，讓輸入框可直接綁定
+watch(
+  priceItems,
+  (items) => {
+    for (const item of items) form.prices[item.id] ??= { base: '', discounts: [] };
+  },
+  { immediate: true }
+);
 
 const ring = (field) => (errorField.value === field ? 'ring-2 ring-rose-300 border-rose-400' : '');
 
@@ -170,6 +243,15 @@ function fillForm(data) {
   Object.assign(form, {
     capacity: String(data.capacity),
     fee: String(data.fee),
+    prices: Object.fromEntries(
+      data.items.map((i) => [
+        i.id,
+        {
+          base: i.customPrice == null ? '' : String(i.customPrice),
+          discounts: i.plans.filter((p) => p.discount).map((p) => ({ name: p.name, price: String(p.price) })),
+        },
+      ])
+    ),
     startDate: toDateTimeLocal(data.startDate),
     endDate: toDateTimeLocal(data.endDate),
     applyEndDate: toDateTimeLocal(data.applyEndDate),
@@ -215,7 +297,9 @@ async function onSubmit() {
   submitting.value = true;
   try {
     if (isCreate.value) {
-      const data = await apiPost('/admin/exams', form);
+      // 只送出仍勾選中的項目價格
+      const prices = Object.fromEntries(form.itemIds.map((id) => [id, form.prices[id]]));
+      const data = await apiPost('/admin/exams', { ...form, prices });
       router.push({ name: 'admin-exam-edit', params: { id: data.exam.id }, query: { created: '1' } });
     } else {
       const data = await apiPut(`/admin/exams/${props.id}`, form);

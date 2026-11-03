@@ -31,7 +31,9 @@
           </div>
           <div class="flex gap-2">
             <dt class="shrink-0 text-slate-400">考試費用</dt>
-            <dd class="text-slate-700">{{ formatMoney(ap.fee) }}</dd>
+            <dd class="text-slate-700">
+              {{ formatMoney(ap.fee) }}<span v-if="ap.discount" class="text-amber-700">（{{ ap.discount }}）</span>
+            </dd>
           </div>
           <div class="flex gap-2">
             <dt class="shrink-0 text-slate-400">成績</dt>

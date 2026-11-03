@@ -42,6 +42,18 @@ CREATE TABLE [dbo].[LinkRgLe] (
   [lk_le_id] INT NOT NULL
 );
 
+-- 考試項目價格 (原價與優惠方案；新增資料表，正式資料庫需手動建立)
+CREATE TABLE [dbo].[RegPrice] (
+  [rp_id]      INT IDENTITY(1,1) NOT NULL CONSTRAINT [PK_RegPrice] PRIMARY KEY,
+  [rp_rg_id]   INT           NOT NULL,
+  [rp_le_id]   INT           NOT NULL,
+  [rp_name]    NVARCHAR(50)  NOT NULL,
+  [rp_money]   INT           NOT NULL,
+  [rp_is_base] BIT           NOT NULL CONSTRAINT [DF_RegPrice_rp_is_base] DEFAULT ((0)),
+  [rp_order]   INT           NOT NULL CONSTRAINT [DF_RegPrice_rp_order] DEFAULT ((0))
+);
+CREATE INDEX [IX_RegPrice_rg_le] ON [dbo].[RegPrice] ([rp_rg_id], [rp_le_id]);
+
 CREATE TABLE [dbo].[Apply] (
   [ap_id]         INT IDENTITY(1,1) NOT NULL CONSTRAINT [PK_Apply] PRIMARY KEY,
   [ap_rg_id]      INT           NOT NULL,
@@ -65,7 +77,8 @@ CREATE TABLE [dbo].[Apply] (
   [ap_createDate] DATETIME      NULL DEFAULT (getdate()),
   [ap_modifyDate] DATETIME      NULL DEFAULT (getdate()),
   -- 新增欄位 (正式資料庫待補，見 pending-production-changes.sql)：報名的證照項目編號 (License.le_id)
-  [ap_le_id]      INT           NULL
+  [ap_le_id]      INT           NULL,
+  [ap_discount]   NVARCHAR(50)  NULL
 );
 
 CREATE TABLE [dbo].[UserData] (

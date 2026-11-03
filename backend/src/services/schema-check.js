@@ -14,6 +14,8 @@ const { sequelize } = require('../models');
 const REQUIRED_COLUMNS = [
   { table: 'LicenseGroup', column: 'lg_is_hidden', purpose: '證照分類隱藏' },
   { table: 'Apply', column: 'ap_le_id', purpose: '報名紀錄的證照項目編號' },
+  { table: 'RegPrice', column: 'rp_money', purpose: '考試項目價格表 (原價與優惠方案)' },
+  { table: 'Apply', column: 'ap_discount', purpose: '報名選擇的優惠方案' },
 ];
 
 /** 回傳目前資料庫缺少的欄位 */

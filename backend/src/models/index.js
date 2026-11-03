@@ -72,6 +72,23 @@ const LinkRgLe = sequelize.define(
   { ...legacy, tableName: 'LinkRgLe' }
 );
 
+// 考試項目價格 (新增資料表，正式資料庫需手動建立，見 database/pending-production-changes.sql)
+// 某考試某項目沒有資料時，原價為考試費用 rg_money、沒有優惠方案
+const RegPrice = sequelize.define(
+  'RegPrice',
+  {
+    rp_id: pk(),
+    rp_rg_id: { type: DataTypes.INTEGER, allowNull: false },
+    rp_le_id: { type: DataTypes.INTEGER, allowNull: false },
+    rp_name: { type: DataTypes.STRING(50), allowNull: false },
+    rp_money: { type: DataTypes.INTEGER, allowNull: false },
+    // 1 = 原價 (每個考試項目最多一筆)；0 = 優惠方案
+    rp_is_base: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+    rp_order: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+  },
+  { ...legacy, tableName: 'RegPrice' }
+);
+
 // 報名紀錄 (報名當下的考試名稱、費用、個人資料皆以快照方式存入)
 const Apply = sequelize.define(
   'Apply',
@@ -82,6 +99,8 @@ const Apply = sequelize.define(
     ap_le_name: { type: DataTypes.STRING(50), allowNull: false },
     // 新增欄位 (正式資料庫需手動補上，見 database/pending-production-changes.sql)：報名的證照項目編號 (License.le_id)
     ap_le_id: { type: DataTypes.INTEGER, allowNull: true },
+    // 新增欄位：報名時選擇的優惠方案名稱 (快照)，NULL 表示原價
+    ap_discount: { type: DataTypes.STRING(50), allowNull: true },
     ap_rg_money: { type: DataTypes.INTEGER, allowNull: false },
     ap_us_no: { type: DataTypes.STRING(20), allowNull: false },
     ap_us_name: { type: DataTypes.STRING(50), allowNull: false },
@@ -159,4 +178,4 @@ License.belongsTo(LicenseGroup, { foreignKey: 'le_group', as: 'group', ...noFk }
 Registration.hasMany(Apply, { foreignKey: 'ap_rg_id', as: 'applies', ...noFk });
 Apply.belongsTo(Registration, { foreignKey: 'ap_rg_id', as: 'registration', ...noFk });
 
-module.exports = { sequelize, Registration, License, LicenseGroup, LinkRgLe, Apply, UserData, UserDataSource };
+module.exports = { sequelize, Registration, License, LicenseGroup, LinkRgLe, RegPrice, Apply, UserData, UserDataSource };

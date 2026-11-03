@@ -35,3 +35,30 @@ JOIN (
   HAVING COUNT(DISTINCT l.[le_id]) = 1
 ) m ON m.[ap_id] = a.[ap_id];
 GO
+
+-- 2026-11-03 考試項目價格表：同一場考試的各項目可設定原價，並可有多個優惠方案
+-- 學生報名時自選方案，承辦人員核對優惠資格後收費
+-- 某考試某項目沒有資料時，原價即為考試費用 (Registration.rg_money)，沒有優惠方案；
+-- 由正式資料庫複製過來的舊考試皆為此情形
+--   rp_is_base = 1：原價 (每個考試項目最多一筆)；0：優惠方案
+--   rp_name：方案名稱 (原價固定為「原價」)，同一考試項目內不可重複
+IF OBJECT_ID('dbo.RegPrice', 'U') IS NULL
+  CREATE TABLE [dbo].[RegPrice] (
+    [rp_id]      INT IDENTITY(1,1) NOT NULL CONSTRAINT [PK_RegPrice] PRIMARY KEY,
+    [rp_rg_id]   INT           NOT NULL,
+    [rp_le_id]   INT           NOT NULL,
+    [rp_name]    NVARCHAR(50)  NOT NULL,
+    [rp_money]   INT           NOT NULL,
+    [rp_is_base] BIT           NOT NULL CONSTRAINT [DF_RegPrice_rp_is_base] DEFAULT ((0)),
+    [rp_order]   INT           NOT NULL CONSTRAINT [DF_RegPrice_rp_order] DEFAULT ((0))
+  );
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_RegPrice_rg_le' AND object_id = OBJECT_ID('dbo.RegPrice'))
+  CREATE INDEX [IX_RegPrice_rg_le] ON [dbo].[RegPrice] ([rp_rg_id], [rp_le_id]);
+GO
+
+-- 報名時選擇的優惠方案名稱 (快照，供承辦人員核對資格)；NULL 表示原價
+IF COL_LENGTH('dbo.Apply', 'ap_discount') IS NULL
+  ALTER TABLE [dbo].[Apply] ADD [ap_discount] NVARCHAR(50) NULL;
+GO

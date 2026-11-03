@@ -75,7 +75,10 @@
               <td class="px-3 py-2">{{ a.idNumber }}</td>
               <td class="px-3 py-2">{{ a.phone }}</td>
               <td class="px-3 py-2">{{ a.item }}</td>
-              <td class="px-3 py-2 text-right">{{ Number(a.fee).toLocaleString('zh-TW') }}</td>
+              <td class="px-3 py-2 text-right">
+                {{ Number(a.fee).toLocaleString('zh-TW') }}
+                <span v-if="a.discount" class="block text-xs text-amber-700">{{ a.discount }}</span>
+              </td>
               <td class="px-3 py-2">
                 <span class="rounded-full px-2.5 py-0.5 text-xs font-medium" :class="PAY_CLASS[a.payCode]">{{ a.payStatus }}</span>
               </td>

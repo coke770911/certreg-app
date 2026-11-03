@@ -44,6 +44,16 @@ export function formatMoney(value) {
   return `NT$ ${Number(value || 0).toLocaleString('zh-TW')}`;
 }
 
+// 考試費用：各項目同價時顯示單一金額，不同價時顯示範圍 (例如 NT$ 1,500 ～ NT$ 2,300)
+export function formatFeeRange(exam) {
+  const min = exam.feeMin ?? exam.fee;
+  const max = exam.feeMax ?? exam.fee;
+  return min === max ? formatMoney(min) : `${formatMoney(min)} ～ ${formatMoney(max)}`;
+}
+
+// 同一場考試的項目是否不同價 (不同價時才在項目旁標示價格)
+export const hasItemPrices = (exam) => (exam.feeMin ?? exam.fee) !== (exam.feeMax ?? exam.fee);
+
 // <input type="datetime-local"> 使用的值 (台北時間)，例如 2026-12-01T09:00
 export function toDateTimeLocal(value) {
   if (!value) return '';

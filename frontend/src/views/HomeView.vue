@@ -43,7 +43,7 @@
             </div>
             <div class="flex gap-2">
               <dt class="shrink-0 text-slate-400">考試費用</dt>
-              <dd class="text-slate-700">{{ formatMoney(exam.fee) }}</dd>
+              <dd class="text-slate-700">{{ formatFeeRange(exam) }}</dd>
             </div>
           </dl>
 
@@ -68,7 +68,7 @@
 <script setup>
 import { onMounted, ref } from 'vue';
 import { apiGet } from '@/api';
-import { formatDateTime, formatMoney, formatRange } from '@/format';
+import { formatDateTime, formatFeeRange, formatRange } from '@/format';
 
 const exams = ref([]);
 const loading = ref(true);

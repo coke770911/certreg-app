@@ -25,7 +25,7 @@
           </div>
           <div class="rounded-xl bg-slate-50 p-4">
             <dt class="text-slate-400">考試費用</dt>
-            <dd class="mt-1 font-medium text-slate-800">{{ formatMoney(exam.fee) }}</dd>
+            <dd class="mt-1 font-medium text-slate-800">{{ formatFeeRange(exam) }}</dd>
           </div>
           <div class="rounded-xl bg-slate-50 p-4">
             <dt class="text-slate-400">報名人數</dt>
@@ -39,7 +39,7 @@
                 :key="item.id"
                 class="rounded-full bg-accent-500/10 px-3 py-1 font-medium text-accent-600"
               >
-                {{ item.name }}
+                {{ item.name }}<template v-if="hasItemPrices(exam)">（{{ formatMoney(item.price) }}）</template>
               </span>
             </dd>
           </div>
@@ -79,7 +79,7 @@
 import { computed, ref, watch } from 'vue';
 import { apiGet } from '@/api';
 import { auth } from '@/auth';
-import { formatDateTime, formatMoney, formatRange } from '@/format';
+import { formatDateTime, formatFeeRange, formatMoney, formatRange, hasItemPrices } from '@/format';
 
 const props = defineProps({ id: { type: String, required: true } });
 

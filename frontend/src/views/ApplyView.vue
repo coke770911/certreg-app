@@ -16,7 +16,7 @@
         <p class="text-sm text-white/80">線上報名</p>
         <h1 class="mt-1 text-2xl font-bold">{{ exam.name }}</h1>
         <p class="mt-2 text-sm text-white/90">
-          {{ formatRange(exam.startDate, exam.endDate) }}　·　{{ formatMoney(exam.fee) }}
+          {{ formatRange(exam.startDate, exam.endDate) }}　·　{{ formatFeeRange(exam) }}
         </p>
       </div>
 
@@ -33,7 +33,9 @@
           </div>
           <div class="flex justify-between gap-4 border-b border-slate-100 pb-2">
             <dt class="text-slate-400">報名費用</dt>
-            <dd class="font-medium text-slate-800">{{ formatMoney(application.fee) }}</dd>
+            <dd class="font-medium text-slate-800">
+              {{ formatMoney(application.fee) }}<span v-if="application.discount" class="text-amber-700">（{{ application.discount }}）</span>
+            </dd>
           </div>
           <div class="flex justify-between gap-4 border-b border-slate-100 pb-2">
             <dt class="text-slate-400">繳費狀態</dt>
@@ -94,7 +96,7 @@
 <script setup>
 import { reactive, ref, watch } from 'vue';
 import { apiGet, apiPost } from '@/api';
-import { formatDateTime, formatMoney, formatRange } from '@/format';
+import { formatDateTime, formatFeeRange, formatMoney, formatRange } from '@/format';
 import ApplicationFields from '@/components/ApplicationFields.vue';
 
 const props = defineProps({ id: { type: String, required: true } });
@@ -123,6 +125,8 @@ watch(
       Object.assign(form, {
         ...data.profile,
         itemId: data.exam.items.length === 1 ? data.exam.items[0].id : null,
+        // 收費方案：空字串為原價
+        discount: '',
         isRegistered: false,
         memo: '',
       });

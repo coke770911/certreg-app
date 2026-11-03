@@ -13,6 +13,7 @@
 const { QueryTypes } = require('sequelize');
 const { sequelize, Apply, UserData } = require('../models');
 const { getExam } = require('./exam-service');
+const { BASE_NAME, resolveFee } = require('./exam-price');
 const { AppError } = require('../errors');
 
 const PAY_STATUS = { 0: '尚未繳費', 1: '已繳費', 2: '退費', 3: '免繳費' };
@@ -58,6 +59,11 @@ function validateApplyInput(input, exam) {
   const selected = Number.isInteger(itemId) ? exam.items.find((i) => i.id === itemId) : null;
   if (!selected) throw fieldError('請選擇考試項目!', 'itemId');
 
+  // 收費方案：空白或「原價」為原價，否則須為此項目的優惠方案
+  const planName = text(data.discount) || BASE_NAME;
+  const plan = selected.plans.find((p) => p.name === planName);
+  if (!plan) throw fieldError('請選擇收費方案!', 'discount');
+
   const name = text(data.name);
   if (!name) throw fieldError('請輸入姓名!', 'name');
   if (name.length > 50) throw fieldError('姓名過長', 'name');
@@ -92,6 +98,9 @@ function validateApplyInput(input, exam) {
 
   return {
     itemId: selected.id,
+    // 所選項目與方案的費用；discount 為優惠方案名稱，原價為 null
+    price: plan.price,
+    discount: plan.discount ? plan.name : null,
     // 報名當下的項目名稱快照 (去除舊資料的前後空白，與舊系統寫入一致)
     item: text(selected.name),
     name,
@@ -114,6 +123,7 @@ function toApplicationDto(ap) {
     itemId: ap.ap_le_id ?? null,
     item: ap.ap_le_name,
     fee: ap.ap_rg_money,
+    discount: ap.ap_discount ?? null,
     payStatus: PAY_STATUS[ap.ap_is_pay ?? '0'] ?? PAY_STATUS[0],
     createdAt: ap.ap_createDate,
   };
@@ -171,6 +181,9 @@ async function submitApplication(examId, studentNo, input) {
       throw new AppError(409, '您已報名、請勿重複報名!');
     }
 
+    // 應繳金額依所選項目與方案，在交易內重新讀取，避免與管理端同時調整費用時不一致
+    const { fee, discount } = await resolveFee(rg, data.itemId, data.discount, transaction);
+
     const applied = await Apply.count({ where: { ap_rg_id: examId, ap_is_del: false }, transaction });
     if (applied >= rg.rg_number) throw new AppError(409, '報名人數已滿!');
 
@@ -180,7 +193,8 @@ async function submitApplication(examId, studentNo, input) {
         ap_rg_name: rg.rg_name,
         ap_le_id: data.itemId,
         ap_le_name: data.item,
-        ap_rg_money: rg.rg_money,
+        ap_rg_money: fee,
+        ap_discount: discount,
         ap_us_no: studentNo,
         ap_us_name: data.name,
         ap_us_ename: data.englishName,

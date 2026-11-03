@@ -18,7 +18,7 @@
         </div>
         <h1 class="mt-1 text-2xl font-bold">{{ detail.examName }}</h1>
         <p class="mt-2 text-sm text-white/90">
-          {{ formatRange(detail.startDate, detail.endDate) }}　·　{{ formatMoney(detail.fee) }}
+          {{ formatRange(detail.startDate, detail.endDate) }}　·　{{ formatMoney(detail.fee) }}{{ detail.discount ? `（${detail.discount}）` : '' }}
           <template v-if="detail.score">　·　成績 {{ detail.score }}</template>
         </p>
       </div>
@@ -91,7 +91,7 @@ const message = ref('');
 const examForFields = computed(
   () =>
     detail.value.exam ?? {
-      items: [{ id: detail.value.form.itemId ?? 0, name: detail.value.item }],
+      items: [{ id: detail.value.form.itemId ?? 0, name: detail.value.item, price: detail.value.fee, plans: [] }],
       requiresRegistration: false,
     }
 );

@@ -35,6 +35,7 @@ function toListItem(ap, rg, now = new Date()) {
     examName: ap.ap_rg_name,
     item: ap.ap_le_name,
     fee: ap.ap_rg_money,
+    discount: ap.ap_discount ?? null,
     payStatus: PAY_STATUS[payCode] ?? PAY_STATUS[0],
     score: formatScore(ap.ap_score),
     startDate: rg?.rg_startDate ?? null,
@@ -84,6 +85,7 @@ async function getMyApplication(id, studentNo) {
       // 舊紀錄沒有項目編號時，以名稱 (忽略前後空白) 對應該場考試的項目
       itemId: ap.ap_le_id ?? exam?.items.find((i) => i.name === String(ap.ap_le_name ?? '').trim())?.id ?? null,
       item: ap.ap_le_name,
+      discount: ap.ap_discount ?? '',
       dept: ap.ap_us_cdept,
       phone: ap.ap_us_phone,
       email: ap.ap_us_email,
@@ -110,14 +112,39 @@ async function updateMyApplication(id, studentNo, input) {
     await assertExamOpen(ap.ap_rg_id, transaction);
 
     const exam = await getExam(ap.ap_rg_id);
+    const itemId = Number(input?.itemId);
+    const sameItem =
+      ap.ap_le_id != null ? ap.ap_le_id === itemId : String(ap.ap_le_name ?? '').trim() === exam?.items.find((i) => i.id === itemId)?.name;
+    // 項目與方案都沒變時沿用報名當下的金額與方案 (即使管理端之後調整或移除了該方案)
+    const discountInput = String(input?.discount ?? '').trim();
+    const sameChoice = sameItem && discountInput === (ap.ap_discount ?? '');
     const data = validateApplyInput(
-      { ...input, name: ap.ap_us_name, sex: ap.ap_us_sex, idNumber: ap.ap_us_id },
+      {
+        ...input,
+        discount: sameChoice ? '' : discountInput,
+        name: ap.ap_us_name,
+        sex: ap.ap_us_sex,
+        idNumber: ap.ap_us_id,
+      },
       exam
     );
+
+    // 改選項目或方案時應繳金額改為新的費用；已繳費 (或退費、免繳) 者不可改成不同金額
+    let fee = ap.ap_rg_money;
+    let discount = ap.ap_discount ?? null;
+    if (!sameChoice) {
+      if (data.price !== ap.ap_rg_money && String(ap.ap_is_pay ?? '0').trim() !== '0') {
+        throw new AppError(409, '已繳費的報名無法改選不同費用的項目或方案，請洽承辦單位', 'itemId');
+      }
+      fee = data.price;
+      discount = data.discount;
+    }
 
     await ap.update(
       {
         ap_le_id: data.itemId,
+        ap_rg_money: fee,
+        ap_discount: discount,
         ap_le_name: data.item,
         ap_us_ename: data.englishName,
         ap_us_cdept: data.dept,

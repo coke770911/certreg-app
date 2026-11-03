@@ -9,9 +9,27 @@
           class="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 transition has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50"
         >
           <input v-model="form.itemId" type="radio" name="itemId" :value="item.id" class="accent-brand-500" />
-          <span class="text-slate-700">{{ item.name }}</span>
+          <span class="min-w-0 flex-1 text-slate-700">{{ item.name }}</span>
+          <span v-if="hasItemPrices(exam)" class="shrink-0 text-sm font-medium text-brand-600">{{ formatMoney(item.price) }}</span>
         </label>
       </div>
+    </fieldset>
+
+    <!-- 所選項目有優惠方案時才顯示；原價的方案值為空字串 -->
+    <fieldset v-if="selectedItem && selectedItem.plans.length > 1">
+      <legend class="mb-3 font-bold text-slate-800">收費方案 <span class="text-rose-500">*</span></legend>
+      <div id="discount" tabindex="-1" class="grid gap-2 sm:grid-cols-2" :class="ring('discount')">
+        <label
+          v-for="plan in selectedItem.plans"
+          :key="plan.name"
+          class="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 px-4 py-3 transition has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50"
+        >
+          <input v-model="form.discount" type="radio" name="discount" :value="plan.discount ? plan.name : ''" class="accent-brand-500" />
+          <span class="min-w-0 flex-1 text-slate-700">{{ plan.name }}</span>
+          <span class="shrink-0 text-sm font-medium text-brand-600">{{ formatMoney(plan.price) }}</span>
+        </label>
+      </div>
+      <p class="mt-2 text-sm text-amber-700">選擇優惠方案者，承辦單位將於收費前核對資格，不符資格者需補繳差額。</p>
     </fieldset>
 
     <fieldset>
@@ -120,6 +138,9 @@
 </template>
 
 <script setup>
+import { computed, watch } from 'vue';
+import { formatMoney, hasItemPrices } from '@/format';
+
 // 報名表單欄位 (新增報名與修改報名共用)；form 為父元件的 reactive 物件，直接雙向綁定
 const props = defineProps({
   exam: { type: Object, required: true },
@@ -134,6 +155,14 @@ const SEX_OPTIONS = [
   { value: 'M', label: '男' },
   { value: 'F', label: '女' },
 ];
+
+const selectedItem = computed(() => props.exam.items.find((i) => i.id === props.form.itemId) ?? null);
+
+// 改選項目後，原本的優惠方案若不適用新項目就改回原價
+watch(selectedItem, (item) => {
+  if (!props.form.discount) return;
+  if (!item?.plans.some((p) => p.discount && p.name === props.form.discount)) props.form.discount = '';
+});
 
 const ring = (field) => (props.errorField === field ? 'ring-2 ring-rose-300 rounded-xl' : '');
 </script>

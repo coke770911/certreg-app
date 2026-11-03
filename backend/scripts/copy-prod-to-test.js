@@ -15,6 +15,9 @@
  * 不複製 v_UserData：正式環境為連到校務系統的檢視表，資料量大；
  * 登入時查無資料會沿用 UserData，因此複製 UserData 即可用正式帳號登入。
  * 注意：複製後測試資料庫含真實個人資料，請勿匯出或分享測試資料庫內容。
+ *
+ * 新系統新增的資料表 (NEW_TABLES，例如考試項目價格 RegPrice)：正式庫已建立時一併複製；
+ * 正式庫還沒有時清空測試庫的資料，複製過來的考試一律以原價 (考試費用 rg_money) 計算。
  */
 
 const { QueryTypes } = require('sequelize');
@@ -29,6 +32,8 @@ const TABLES = [
   ['Apply', 'ap_id'],
   ['UserData', 'us_uid'],
 ];
+// 新系統新增的資料表：正式庫有就複製，沒有就清空 (資料內容依附於上方被取代的考試)
+const NEW_TABLES = [['RegPrice', 'rp_id']];
 const BATCH = 500; // SQL Server 單一 INSERT VALUES 上限 1000 列
 
 const columnsOf = (db, table) =>
@@ -82,7 +87,17 @@ async function main() {
     console.log(`目標 (測試)：${config.host} / ${config.database}\n`);
 
     const plan = [];
-    for (const [table, idColumn] of TABLES) {
+    const clear = [];
+    const tables = [...TABLES];
+    for (const [table, idColumn] of NEW_TABLES) {
+      if ((await columnsOf(test, table)).length === 0) continue;
+      if ((await columnsOf(prod, table)).length > 0) tables.push([table, idColumn]);
+      else {
+        clear.push(table);
+        console.log(`${table.padEnd(14)} 正式庫尚無此資料表 → 清空測試庫 ${await countOf(test, table)} 筆 (改以原價計算)`);
+      }
+    }
+    for (const [table, idColumn] of tables) {
       const prodCols = await columnsOf(prod, table);
       const testCols = await columnsOf(test, table);
       if (testCols.length === 0) throw new Error(`測試資料庫沒有 ${table} 資料表，請先執行 npm run db:setup`);
@@ -106,6 +121,7 @@ async function main() {
 
     await test.transaction(async (transaction) => {
       const run = (sql) => test.query(sql, { transaction });
+      for (const table of clear) await run(`DELETE FROM [dbo].[${table}]`);
       for (const { table, idColumn, columns, rows } of plan) {
         await run(`DELETE FROM [dbo].[${table}]`);
         if (rows.length > 0) {
@@ -137,8 +153,7 @@ async function main() {
     }
     if (!ok) process.exitCode = 1;
     // 測試庫新增的欄位 (正式庫尚無) 維持預設值，需再回填
-    else console.log('
-如測試庫有正式庫尚未補上的欄位，請再執行 npm run db:migrate-test 回填資料。');
+    else console.log('\n如測試庫有正式庫尚未補上的欄位，請再執行 npm run db:migrate-test 回填資料。');
   } catch (err) {
     console.error(`✖ 複製失敗 (測試資料庫已還原)：${err.message}`);
     process.exitCode = 1;
