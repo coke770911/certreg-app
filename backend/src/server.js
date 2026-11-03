@@ -4,8 +4,9 @@
  * 服務啟動入口：只開啟 .env 的 PORT 一個通訊埠，同時提供網站與 API。
  */
 
-const { resolveDbConfig } = require('./config/database');
+const { resolveDbConfig, envFile } = require('./config/database');
 const { resolveAuthConfig } = require('./config/auth');
+const { resolvePort } = require('./config/port');
 const app = require('./app');
 const { writeLog, logError, flushLogs } = require('./services/audit-log');
 const { loadPermissions } = require('./services/permission-service');
@@ -14,13 +15,16 @@ const { findMissingColumns } = require('./services/schema-check');
 // 啟動前先驗證設定，APP_ENV、資料庫或登入設定錯誤時直接中止
 const dbConfig = resolveDbConfig();
 const authConfig = resolveAuthConfig();
-const port = Number.parseInt(process.env.PORT || '3000', 10);
+const { port, source: portSource, ignored: ignoredPort } = resolvePort(envFile);
 
 const server = app.listen(port, () => {
+  if (ignoredPort) {
+    console.warn(`[LRS] 偵測到外部環境變數 PORT=${ignoredPort}，已忽略，改用 .env 的 PORT=${port}`);
+  }
   console.log(`[LRS] 運行模式：${dbConfig.appEnv}${dbConfig.isProduction ? ' (正式環境鎖定)' : ''}`);
   console.log(`[LRS] 資料庫：${dbConfig.host}:${dbConfig.port} / ${dbConfig.database}`);
   console.log(`[LRS] 登入方式：${authConfig.provider === 'ad' ? '學校 AD 驗證' : '開發用登入 (任意密碼)'}`);
-  console.log(`[LRS] 網站與 API 已啟動：http://localhost:${port}`);
+  console.log(`[LRS] 網站與 API 已啟動：http://localhost:${port} (PORT 來源：${portSource})`);
   // 首次啟動時會把舊的 ADMIN_ACCOUNTS 匯入權限設定檔，之後即以權限設定為準
   loadPermissions();
   if (process.env.ADMIN_ACCOUNTS) {

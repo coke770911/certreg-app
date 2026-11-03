@@ -17,7 +17,8 @@
 const path = require('node:path');
 const { Sequelize } = require('sequelize');
 
-require('dotenv').config({ path: path.resolve(__dirname, '../../.env'), quiet: true });
+// dotenv 不會覆寫已存在的環境變數；parsed 保留 .env 檔案本身的內容，供 PORT 等需以 .env 為準的設定比對
+const envFile = require('dotenv').config({ path: path.resolve(__dirname, '../../.env'), quiet: true }).parsed || {};
 
 // 舊資料庫的 datetime 欄位皆為台灣當地時間 (無時區資訊)，程式統一以台北時區解讀與寫入
 process.env.TZ = process.env.TZ || 'Asia/Taipei';
@@ -180,6 +181,7 @@ function getSequelize() {
 }
 
 module.exports = {
+  envFile,
   ProductionGuardError,
   containsDdl,
   resolveDbConfig,

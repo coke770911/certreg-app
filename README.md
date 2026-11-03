@@ -1,6 +1,6 @@
 # 證照報名系統 (certreg-app)
 
-> 目前版本：`0.1.1`（每次 push 前以 `npm run version:bump` 遞增，規則見下方「版本號」）
+> 目前版本：`0.1.2`（每次 push 前以 `npm run version:bump` 遞增，規則見下方「版本號」）
 
 將舊有 PHP 證照報名系統（`D:\project\lrs`，CodeIgniter 3）重構為 Node.js + Vue 3 架構。
 
@@ -42,6 +42,7 @@ certreg-app/
       ├─ app.js            Express 主體（API、靜態檔、SPA fallback）
       ├─ config/database.js  資料庫設定與正式環境鎖定
       ├─ config/auth.js    登入驗證設定
+      ├─ config/port.js    服務通訊埠 (以 .env 的 PORT 為準)
       ├─ config/storage.js 本機資料目錄（DATA_DIR）
       ├─ middleware/       登入狀態、登入失敗次數限制
       ├─ models/           Sequelize 模型（對應舊資料表）
@@ -130,7 +131,7 @@ pm2 save
 | 變數 | 說明 |
 | --- | --- |
 | `APP_ENV` | `development` / `test` / `production`，未設定或不合法時拒絕啟動 |
-| `PORT` | 網站與 API 共用的通訊埠 |
+| `PORT` | 網站與 API 共用的通訊埠（必填）。以 `.env` 為準，外部的 PORT 環境變數會被忽略並於啟動時提示 |
 | `PROD_DB_*` | 正式資料庫連線（僅 `production` 使用） |
 | `TEST_DB_*` | 測試資料庫連線（`development` / `test` 使用） |
 | `JWT_SECRET` / `JWT_EXPIRES_IN` | 登入憑證簽章金鑰與有效期限 |
