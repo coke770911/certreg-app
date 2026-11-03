@@ -15,6 +15,8 @@ const { sequelize, Apply, Registration } = require('../models');
 const { getExam } = require('./exam-service');
 const { PAY_STATUS, validateApplyInput, saveContactToProfile } = require('./application-service');
 const { toChineseAmount, toSlipDigits } = require('./chinese-amount');
+const { buildTwqrPayload, toQrSvg } = require('./twqr');
+const { resolveTwqrConfig } = require('../config/payment');
 const { AppError } = require('../errors');
 
 const NO_SCORE = ['', '-1', '未輸入'];
@@ -42,6 +44,8 @@ function toListItem(ap, rg, now = new Date()) {
     canEdit: isOpen,
     canCancel: isOpen,
     canPrintSlip: payCode === '0',
+    // TWQR 線上轉帳：尚未繳費、金額大於 0 且已設定轉入銀行代碼
+    canPayTwqr: payCode === '0' && Number(ap.ap_rg_money) > 0 && resolveTwqrConfig() !== null,
   };
 }
 
@@ -149,6 +153,36 @@ async function getDepositSlip(id, studentNo, payee) {
   return buildDepositSlip(ap, payee);
 }
 
+/** TWQR 線上轉帳：依報名費用產生轉帳 QR Code；僅尚未繳費的報名可使用 */
+async function getTwqrPayment(id, studentNo) {
+  const ap = await findOwnApplication(id, studentNo);
+  const payCode = String(ap.ap_is_pay ?? '0').trim();
+  if (payCode !== '0') {
+    throw new AppError(409, `此報名繳費狀態為「${PAY_STATUS[payCode] ?? '未知'}」，無需繳費`);
+  }
+  const config = resolveTwqrConfig();
+  if (!config) throw new AppError(503, 'TWQR 線上轉帳尚未開放，請改用繳費單繳費');
+  const amount = Number(ap.ap_rg_money);
+  if (!Number.isInteger(amount) || amount <= 0) throw new AppError(409, '此報名免繳費用');
+
+  const payload = buildTwqrPayload({ bankCode: config.bankCode, account: config.account, amount });
+  const rg = await Registration.findByPk(ap.ap_rg_id);
+  return {
+    id: ap.ap_id,
+    examName: ap.ap_rg_name,
+    item: ap.ap_le_name,
+    studentNo: ap.ap_us_no,
+    name: ap.ap_us_name,
+    amount,
+    bankCode: config.bankCode,
+    bankName: config.bankName,
+    accountName: config.accountName,
+    account: config.account,
+    dueDate: rg?.rg_applyEndDate ?? null,
+    qrSvg: await toQrSvg(payload),
+  };
+}
+
 /** 依報名資料組出繳費單內容 (學生端與管理端共用) */
 async function buildDepositSlip(ap, payee) {
   const rg = await Registration.findByPk(ap.ap_rg_id);
@@ -175,5 +209,6 @@ module.exports = {
   updateMyApplication,
   cancelMyApplication,
   getDepositSlip,
+  getTwqrPayment,
   buildDepositSlip,
 };

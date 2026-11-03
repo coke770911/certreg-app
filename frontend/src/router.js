@@ -35,6 +35,13 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/my/applications/:id(\\d+)/twqr',
+      name: 'twqr-pay',
+      component: () => import('./views/TwqrPayView.vue'),
+      props: true,
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/my/applications/:id(\\d+)/slip',
       name: 'deposit-slip',
       component: () => import('./views/DepositSlipView.vue'),

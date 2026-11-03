@@ -59,6 +59,13 @@
           >
             列印繳費單
           </a>
+          <RouterLink
+            v-if="ap.canPayTwqr"
+            :to="{ name: 'twqr-pay', params: { id: ap.id } }"
+            class="rounded-full border border-brand-500 px-4 py-1.5 text-sm font-medium text-brand-600 hover:bg-brand-50"
+          >
+            TWQR線上轉帳
+          </RouterLink>
           <button
             v-if="ap.canCancel"
             type="button"

@@ -211,17 +211,19 @@ function sortOtherLast(groups) {
   return [...groups.filter((g) => !isOther(g)), ...groups.filter(isOther)];
 }
 
-/** 證照分類與其項目 (依排序欄位、編號排序，「其他」排最後)；hidden 表示已隱藏 */
+/** 證照分類與其項目 (依排序欄位、編號排序，「其他」排最後)；分類與項目的 hidden 表示已隱藏 */
 async function listLicenseGroups() {
   const [groups, licenses] = await Promise.all([
     LicenseGroup.findAll({ order: [['lg_order', 'ASC'], ['lg_id', 'ASC']] }),
-    License.findAll({ where: { le_is_del: false }, order: [['le_order', 'ASC'], ['le_id', 'ASC']] }),
+    License.findAll({ order: [['le_order', 'ASC'], ['le_id', 'ASC']] }),
   ]);
   return sortOtherLast(groups).map((g) => ({
     id: g.lg_id,
     name: g.lg_name,
     hidden: Boolean(g.lg_is_hidden),
-    items: licenses.filter((le) => le.le_group === g.lg_id).map((le) => ({ id: le.le_id, name: text(le.le_name) })),
+    items: licenses
+      .filter((le) => le.le_group === g.lg_id)
+      .map((le) => ({ id: le.le_id, name: text(le.le_name), hidden: Boolean(le.le_is_del) })),
   }));
 }
 
@@ -253,9 +255,10 @@ async function findGroup(id, transaction) {
   return lg;
 }
 
-async function findLicense(id, transaction) {
-  const le = await License.findOne({ where: { le_id: id, le_is_del: false }, transaction });
-  if (!le) throw new AppError(404, '找不到此證照項目');
+/** 證照項目；includeHidden 為 false 時已隱藏的項目視為找不到 (需先取消隱藏才能修改) */
+async function findLicense(id, transaction, { includeHidden = false } = {}) {
+  const le = await License.findByPk(id, { transaction });
+  if (!le || (le.le_is_del && !includeHidden)) throw new AppError(404, '找不到此證照項目');
   return le;
 }
 
@@ -386,13 +389,25 @@ async function updateLicense(id, input = {}) {
   });
 }
 
-/** 刪除證照項目 (標記 le_is_del，已建立的考試與報名紀錄不受影響)；用於尚未結束的考試時不可刪除 */
-async function deleteLicense(id) {
+/**
+ * 隱藏／取消隱藏證照項目 (沿用舊欄位 le_is_del 作為隱藏標記，舊系統同樣不顯示)。
+ * 項目不提供刪除，避免舊考試與報名紀錄無法對照；隱藏後不能用於新增考試，
+ * 已建立的考試與報名不受影響。取消隱藏時同分類不可已有同名的項目。
+ */
+async function setLicenseHidden(id, hidden) {
+  if (typeof hidden !== 'boolean') throw new AppError(400, '隱藏設定格式錯誤');
   return sequelize.transaction(async (transaction) => {
-    const le = await findLicense(id, transaction);
-    await assertNotInUnfinishedExam(le.le_id, '刪除', transaction);
-    await le.update({ le_is_del: true }, { transaction });
-    return { id: le.le_id, name: le.le_name, groupId: le.le_group };
+    const le = await findLicense(id, transaction, { includeHidden: true });
+    if (Boolean(le.le_is_del) === hidden) throw new AppError(409, hidden ? '此項目已經隱藏' : '此項目沒有隱藏');
+    if (!hidden) {
+      const dup = await License.findOne({
+        where: { le_group: le.le_group, le_name: le.le_name, le_is_del: false },
+        transaction,
+      });
+      if (dup) throw new AppError(409, '此分類已有相同名稱的證照項目，無法取消隱藏');
+    }
+    await le.update({ le_is_del: hidden }, { transaction });
+    return { id: le.le_id, name: text(le.le_name), groupId: le.le_group };
   });
 }
 
@@ -410,5 +425,5 @@ module.exports = {
   moveLicenseGroup,
   createLicense,
   updateLicense,
-  deleteLicense,
+  setLicenseHidden,
 };

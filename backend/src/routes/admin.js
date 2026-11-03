@@ -20,7 +20,7 @@ const {
   moveLicenseGroup,
   createLicense,
   updateLicense,
-  deleteLicense,
+  setLicenseHidden,
 } = require('../services/admin-exam-service');
 const {
   listApplicants,
@@ -181,11 +181,15 @@ router.put('/licenses/:id', async (req, res) => {
   res.json({ message: '修改成功！', license: { id: license.id, name: license.name, groupId: license.groupId } });
 });
 
-// 刪除證照項目 (標記刪除，已建立的考試與報名不受影響)
-router.delete('/licenses/:id', async (req, res) => {
-  const license = await deleteLicense(licenseId(req));
-  audit(req, 'admin', '刪除證照項目', { target: `#${license.id} ${license.name}`, detail: `分類 #${license.groupId}` });
-  res.json({ message: `已刪除「${license.name}」` });
+// 隱藏／取消隱藏證照項目 (項目不可刪除，避免舊資料無法對照；已建立的考試與報名不受影響)
+router.put('/licenses/:id/hidden', async (req, res) => {
+  const hidden = req.body?.hidden;
+  const license = await setLicenseHidden(licenseId(req), hidden);
+  audit(req, 'admin', hidden ? '隱藏證照項目' : '取消隱藏證照項目', {
+    target: `#${license.id} ${license.name}`,
+    detail: `分類 #${license.groupId}`,
+  });
+  res.json({ message: hidden ? `已隱藏「${license.name}」` : `已取消隱藏「${license.name}」` });
 });
 
 module.exports = router;

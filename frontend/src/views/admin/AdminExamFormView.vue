@@ -189,7 +189,11 @@ async function load() {
     if (isCreate.value) {
       exam.value = null;
       Object.assign(form, emptyForm());
-      groups.value = await apiGet('/admin/license-groups');
+      // 已隱藏的證照項目不能用於新增考試
+      groups.value = (await apiGet('/admin/license-groups')).map((g) => ({
+        ...g,
+        items: g.items.filter((i) => !i.hidden),
+      }));
     } else {
       exam.value = await apiGet(`/admin/exams/${props.id}`);
       fillForm(exam.value);

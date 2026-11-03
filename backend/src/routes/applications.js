@@ -10,6 +10,7 @@ const {
   updateMyApplication,
   cancelMyApplication,
   getDepositSlip,
+  getTwqrPayment,
 } = require('../services/my-application-service');
 const { resolvePaymentConfig } = require('../config/payment');
 const { parseId } = require('./params');
@@ -65,6 +66,11 @@ router.post('/:id/cancel', async (req, res) => {
 router.get('/:id/slip', async (req, res) => {
   const id = parseId(req.params.id, '報名編號');
   res.json(await getDepositSlip(id, req.auth.studentNo, resolvePaymentConfig()));
+});
+
+// TWQR 線上轉帳 (轉帳 QR Code，金額為報名時的考試費用)
+router.get('/:id/twqr', async (req, res) => {
+  res.json(await getTwqrPayment(parseId(req.params.id, '報名編號'), req.auth.studentNo));
 });
 
 module.exports = router;

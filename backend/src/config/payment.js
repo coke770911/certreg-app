@@ -29,4 +29,19 @@ function resolvePaymentConfig(env = process.env) {
   };
 }
 
-module.exports = { resolvePaymentConfig };
+/**
+ * TWQR 線上轉帳收款資訊：轉入銀行代碼 (PAY_BANK_CODE) + 繳費單的收款帳號 (PAY_BANK_ACCOUNT)
+ * 未設定 PAY_BANK_CODE 時回傳 null，學生端不顯示 TWQR 線上轉帳
+ */
+function resolveTwqrConfig(env = process.env) {
+  const bankCode = (env.PAY_BANK_CODE || '').trim();
+  const account = (env.PAY_BANK_ACCOUNT || '').replace(/[\s-]/g, '');
+  if (!bankCode) return null;
+  if (!/^\d{3}$/.test(bankCode) || !/^\d{1,16}$/.test(account)) {
+    console.error('[payment] TWQR 設定錯誤：PAY_BANK_CODE 須為 3 碼銀行代碼，PAY_BANK_ACCOUNT 須為 16 碼以內數字');
+    return null;
+  }
+  return { bankCode, account, bankName: (env.PAY_BANK_NAME || '').trim(), accountName: (env.PAY_ACCOUNT_NAME || '').trim() };
+}
+
+module.exports = { resolvePaymentConfig, resolveTwqrConfig };

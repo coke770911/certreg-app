@@ -57,6 +57,13 @@
           >
             列印繳費單
           </a>
+          <RouterLink
+            v-if="detail.canPayTwqr"
+            :to="{ name: 'twqr-pay', params: { id: detail.id } }"
+            class="flex-1 rounded-full border border-brand-500 px-6 py-3 text-center font-bold text-brand-600 hover:bg-brand-50"
+          >
+            TWQR線上轉帳
+          </RouterLink>
         </div>
       </form>
     </template>

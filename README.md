@@ -1,6 +1,6 @@
 # 證照報名系統 (certreg-app)
 
-> 目前版本：`0.1.3`（每次 push 前以 `npm run version:bump` 遞增，規則見下方「版本號」）
+> 目前版本：`0.1.4`（每次 push 前以 `npm run version:bump` 遞增，規則見下方「版本號」）
 
 將舊有 PHP 證照報名系統（`D:\project\lrs`，CodeIgniter 3）重構為 Node.js + Vue 3 架構。
 
@@ -141,6 +141,7 @@ pm2 save
 | `TRUST_PROXY` | 部署於 IIS / Nginx 反向代理之後時設定（例如 `loopback`） |
 | `DATA_DIR` | 系統日誌與權限設定的存放目錄，留空為 `backend/data` |
 | `PAY_ACCOUNT_NAME` / `PAY_BANK_ACCOUNT` / `PAY_BANK_NAME` / `PAY_BANK_BRANCH` | 繳費單收款戶名、14 碼帳號、銀行與分行（不寫在程式碼中） |
+| `PAY_BANK_CODE` | 收款銀行代碼 3 碼，TWQR 線上轉帳的轉入行（轉入帳號即 `PAY_BANK_ACCOUNT`）；留空則不提供 TWQR 線上轉帳 |
 
 ## 登入與報名
 
@@ -165,7 +166,8 @@ pm2 save
   - 欄位格式驗證（英文姓名、身分證字號、電話、電子郵件、長度）
   - 報名紀錄的查看、修改、取消、繳費單皆限本人（舊系統取消報名可取消他人報名）
   - 修改與取消在伺服器端檢查報名截止時間（舊系統只隱藏按鈕）；修改時姓名、性別、身分證字號不可變更
-- **報名紀錄**：截止前可修改（考試項目、英文姓名、系年班、電話、電子郵件、官網註冊、備註）與取消報名（標記取消，不刪除資料）；尚未繳費者可列印繳費單。
+- **報名紀錄**：截止前可修改（考試項目、英文姓名、系年班、電話、電子郵件、官網註冊、備註）與取消報名（標記取消，不刪除資料）；尚未繳費者可列印繳費單，或使用「TWQR線上轉帳」。
+- **TWQR線上轉帳**：依財金公司 TWQR 轉帳格式（`TWQRP://{銀行代碼}NTTransfer/158/02/V1?D1=金額×100&D5=銀行代碼&D6=16 碼帳號&D10=901`）產生 QR Code，金額為報名時的考試費用，由後端以 `qrcode` 套件產生 SVG。僅尚未繳費、費用大於 0 且已設定 `PAY_BANK_CODE` 時顯示。部分銀行 APP 不支援自動帶入金額，畫面同時顯示金額與帳號；轉帳不帶學號，入帳後仍由承辦人員核對、更新繳費狀態。
 - **繳費單**：版面依舊系統 `V_depositSlip.php` 重現（寬度、框線、虛線、直書備註皆相同；不含舊版表格外框在右側留下的括號狀線條），繳款期限為報名截止日（民國年），金額自動轉中文大寫；直接以瀏覽器列印（A4 直式，左右邊界 8mm 不需縮放）。樣式 class 一律加 `slip-` 前綴，避免與 Tailwind 工具類別衝突。
 
 ## 管理端
@@ -174,7 +176,7 @@ pm2 save
 - **考試**：新增時選擇證照分類與項目（可多選）；建立後名稱與考試項目不可修改（與舊系統相同），其餘欄位與上下架可在考試結束前修改。費用可輸入千分位（如 `1,500`）。
 - **證照分類與項目**（分類：新增、修改、隱藏、排序；項目：新增、修改、刪除）：分類清單由資料庫 `LicenseGroup` 讀取，「其他」固定排在最後。舊系統的分類寫死在畫面上，只能新增項目。
   - 分類：名稱不可重複；可上移／下移調整順序（重新編號 `lg_order`）；分類**不可刪除**，不再使用時改為「隱藏」（`lg_is_hidden`），以免舊考試與報名紀錄無法對照分類；隱藏的分類不出現在新增考試、新增或移動證照項目的選單，可隨時取消隱藏，分類內的項目仍可改名。
-  - 項目：可修改名稱或移到其他分類，同分類不可重複名稱。刪除只標記 `le_is_del`，已建立的考試與報名紀錄不受影響。
+  - 項目：可修改名稱或移到其他分類，同分類不可重複名稱。項目**不可刪除，只能隱藏**（沿用舊欄位 `le_is_del` 作為隱藏標記，舊系統同樣不顯示，正式庫不需補欄位）：隱藏後不能用於新增考試，已建立的考試與報名紀錄不受影響；隱藏中的項目需先取消隱藏才能修改，同分類已有同名項目時不可取消隱藏。
   - 用在尚未結束考試（含下架）的項目，不能改名也不能刪除，避免影響正在報名的考生；移到其他分類不受限制。
   - 所有異動都會寫入系統日誌。
 - **繳費處理**：勾選考生後批次設定繳費狀態；「取消報名」會標記取消並將繳費狀態設回未繳費。批次中任一筆不屬於該場考試或已取消，整批不更新。
@@ -223,9 +225,10 @@ pm2 save
 | 線上報名 | `Apply/applyData`、`Apply/addProcess` | ✅ 完成（`GET /api/applications/form/:examId`、`POST /api/applications`） |
 | 報名紀錄、修改、取消報名 | `Apply/historyList`、`detailed`、`editProcess`、`cancel` | ✅ 完成（`GET /api/applications/mine`、`GET/PUT /api/applications/:id`、`POST /api/applications/:id/cancel`） |
 | 列印繳費單 | `Apply/PrintPay` | ✅ 完成（`GET /api/applications/:id/slip`，頁面 `/my/applications/:id/slip`） |
+| TWQR線上轉帳（新增） | — | ✅ 完成（`GET /api/applications/:id/twqr`，頁面 `/my/applications/:id/twqr`） |
 | 管理：考試列表、考試場次新增／編輯（上下架） | `Manage/index`、`addTheme`、`ThemeProcess`、`detailed` | ✅ 完成（`GET/POST /api/admin/exams`、`GET/PUT /api/admin/exams/:id`，頁面 `/admin`） |
 | 管理：證照項目維護 | `Manage/addItem`、`addItemProcess`、`selItem` | ✅ 完成（`GET /api/admin/license-groups`、`POST /api/admin/licenses`） |
-| 管理：證照分類修改、隱藏、排序與項目修改、刪除（新增） | —（舊系統寫死在畫面上） | ✅ 完成（`POST /api/admin/license-groups`、`PUT /api/admin/license-groups/:id`、`PUT /api/admin/license-groups/:id/hidden`、`POST /api/admin/license-groups/:id/move`、`PUT/DELETE /api/admin/licenses/:id`） |
+| 管理：證照分類修改、隱藏、排序與項目修改、隱藏（新增） | —（舊系統寫死在畫面上） | ✅ 完成（`POST /api/admin/license-groups`、`PUT /api/admin/license-groups/:id`、`PUT /api/admin/license-groups/:id/hidden`、`POST /api/admin/license-groups/:id/move`、`PUT /api/admin/licenses/:id`、`PUT /api/admin/licenses/:id/hidden`） |
 | 管理：繳費處理（已繳費／未繳費／免繳費／退費／取消報名） | `Manage/checkPay`、`payProcess` | ✅ 完成（`GET /api/admin/exams/:id/applicants`、`POST /api/admin/exams/:id/payments`） |
 | 管理：成績處理 | `Manage/inpScore`、`scoreProcess` | ✅ 完成（`PUT /api/admin/exams/:id/scores`） |
 | 管理：報名名單匯出 Excel | `Manage/exportList` | ✅ 完成（`GET /api/admin/exams/:id/export`，改為 .xlsx） |

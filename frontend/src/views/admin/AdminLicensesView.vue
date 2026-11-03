@@ -141,12 +141,27 @@
               </form>
               <!-- 項目：顯示模式 -->
               <div v-else class="flex items-center justify-between gap-2 rounded-lg px-2 py-1 hover:bg-slate-50">
-                <span class="text-sm" :class="item.id === lastAdded ? 'font-bold text-brand-600' : 'text-slate-700'">
-                  {{ item.name }}
+                <span class="flex min-w-0 items-center gap-2 text-sm">
+                  <span
+                    :class="item.hidden ? 'text-slate-400' : item.id === lastAdded ? 'font-bold text-brand-600' : 'text-slate-700'"
+                  >{{ item.name }}</span>
+                  <span v-if="item.hidden" class="shrink-0 rounded-full bg-amber-50 px-2 py-0.5 text-xs text-amber-700">已隱藏</span>
                 </span>
                 <div class="flex shrink-0 gap-0.5 text-sm">
-                  <button type="button" class="icon-btn text-accent-600" :disabled="busy" @click="startEditItem(item, g)">編輯</button>
-                  <button type="button" class="icon-btn text-rose-500" :disabled="busy" @click="removeItem(item)">刪除</button>
+                  <button
+                    v-if="!item.hidden"
+                    type="button"
+                    class="icon-btn text-accent-600"
+                    :disabled="busy"
+                    @click="startEditItem(item, g)"
+                  >編輯</button>
+                  <button
+                    type="button"
+                    class="icon-btn"
+                    :class="item.hidden ? 'text-emerald-600' : 'text-slate-500'"
+                    :disabled="busy"
+                    @click="setItemHidden(item, !item.hidden)"
+                  >{{ item.hidden ? '取消隱藏' : '隱藏' }}</button>
                 </div>
               </div>
             </li>
@@ -159,7 +174,7 @@
 
 <script setup>
 import { computed, nextTick, onMounted, reactive, ref } from 'vue';
-import { apiDelete, apiGet, apiPost, apiPut } from '@/api';
+import { apiGet, apiPost, apiPut } from '@/api';
 
 const groups = ref([]);
 const loading = ref(true);
@@ -324,8 +339,9 @@ function setHidden(g, hidden) {
   run(() => apiPut(`/admin/license-groups/${g.id}/hidden`, { hidden }));
 }
 
-function removeItem(item) {
-  if (!window.confirm(`確定要刪除證照項目「${item.name}」嗎？\n已建立的考試與報名紀錄不受影響。`)) return;
-  run(() => apiDelete(`/admin/licenses/${item.id}`));
+function setItemHidden(item, hidden) {
+  if (hidden && !window.confirm(`確定要隱藏證照項目「${item.name}」嗎？
+隱藏後不能用於新增考試，已建立的考試與報名紀錄不受影響，之後可取消隱藏。`)) return;
+  run(() => apiPut(`/admin/licenses/${item.id}/hidden`, { hidden }));
 }
 </script>
