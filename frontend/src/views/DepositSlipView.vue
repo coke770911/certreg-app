@@ -277,8 +277,7 @@ const print = () => window.print();
   width: 720px;
 }
 .slip-table {
-  /* 舊系統對 table 與 td 都設了黑框；隱藏的框線以白色覆蓋，外框因此在右側留下括號狀的線，一併重現 */
-  border: 1px solid #000;
+  /* 不設表格外框：舊系統的 table 外框會在右側與備註周圍留下括號狀的線，列印時不應出現 */
   border-collapse: collapse;
   text-align: center;
   font-size: 16px;
