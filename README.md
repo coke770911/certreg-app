@@ -1,6 +1,6 @@
 # 證照報名系統 (certreg-app)
 
-> 目前版本：`0.1.4`（每次 push 前以 `npm run version:bump` 遞增，規則見下方「版本號」）
+> 目前版本：`0.1.5`（每次 push 前以 `npm run version:bump` 遞增，規則見下方「版本號」）
 
 將舊有 PHP 證照報名系統（`D:\project\lrs`，CodeIgniter 3）重構為 Node.js + Vue 3 架構。
 
@@ -234,6 +234,7 @@ pm2 save
 | 報名紀錄、修改、取消報名 | `Apply/historyList`、`detailed`、`editProcess`、`cancel` | ✅ 完成（`GET /api/applications/mine`、`GET/PUT /api/applications/:id`、`POST /api/applications/:id/cancel`） |
 | 列印繳費單 | `Apply/PrintPay` | ✅ 完成（`GET /api/applications/:id/slip`，頁面 `/my/applications/:id/slip`） |
 | TWQR線上轉帳（新增） | — | ✅ 完成（`GET /api/applications/:id/twqr`，頁面 `/my/applications/:id/twqr`） |
+| 考試項目個別價格與優惠方案（新增） | —（舊系統一場考試單一費用） | ✅ 完成（考試表單 `prices` 欄位、報名 `discount` 欄位；資料表 `RegPrice`） |
 | 管理：考試列表、考試場次新增／編輯（上下架） | `Manage/index`、`addTheme`、`ThemeProcess`、`detailed` | ✅ 完成（`GET/POST /api/admin/exams`、`GET/PUT /api/admin/exams/:id`，頁面 `/admin`） |
 | 管理：證照項目維護 | `Manage/addItem`、`addItemProcess`、`selItem` | ✅ 完成（`GET /api/admin/license-groups`、`POST /api/admin/licenses`） |
 | 管理：證照分類修改、隱藏、排序與項目修改、隱藏（新增） | —（舊系統寫死在畫面上） | ✅ 完成（`POST /api/admin/license-groups`、`PUT /api/admin/license-groups/:id`、`PUT /api/admin/license-groups/:id/hidden`、`POST /api/admin/license-groups/:id/move`、`PUT /api/admin/licenses/:id`、`PUT /api/admin/licenses/:id/hidden`） |

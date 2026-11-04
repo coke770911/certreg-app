@@ -1,6 +1,6 @@
 {
   "name": "lrs-frontend",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": true,
   "description": "證照報名系統 (LRS) 重構 - Vue 3 前端，編譯產出至 backend/public",
   "type": "module",
