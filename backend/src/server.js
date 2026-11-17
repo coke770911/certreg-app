@@ -23,10 +23,13 @@ const server = app.listen(port, () => {
   }
   console.log(`[LRS] 運行模式：${dbConfig.appEnv}${dbConfig.isProduction ? ' (正式環境鎖定)' : ''}`);
   console.log(`[LRS] 資料庫：${dbConfig.host}:${dbConfig.port} / ${dbConfig.database}`);
-  console.log(`[LRS] 登入方式：${authConfig.provider === 'ad' ? '學校 AD 驗證' : '開發用登入 (任意密碼)'}`);
+  console.log(`[LRS] 登入方式：${authConfig.provider === 'ad' ? '校內認證服務 (REST API)' : '開發用登入 (任意密碼)'}`);
   console.log(`[LRS] 網站與 API 已啟動：http://localhost:${port} (PORT 來源：${portSource})`);
   // 首次啟動時會把舊的 ADMIN_ACCOUNTS 匯入權限設定檔，之後即以權限設定為準
   loadPermissions();
+  if (process.env.AD_AUTH_URL || process.env.AD_AUTH_NAMESPACE) {
+    console.warn('[LRS] .env 的 AD_AUTH_URL、AD_AUTH_NAMESPACE (舊 SOAP 驗證) 已不再使用 (改用 AUTH_API_URL、AUTH_API_KEY)，可自 .env 移除');
+  }
   if (process.env.ADMIN_ACCOUNTS) {
     console.warn('[LRS] .env 的 ADMIN_ACCOUNTS 已不再使用 (改由管理端「權限設定」維護)，可自 .env 移除');
   }

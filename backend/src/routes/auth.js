@@ -8,21 +8,33 @@ const { setAuthCookie, clearAuthCookie } = require('../middleware/auth');
 const { isBlocked, recordFailure, clearFailures } = require('../middleware/login-limiter');
 const { AppError } = require('../errors');
 const { writeLog, audit } = require('../services/audit-log');
+const { createCaptcha, verifyCaptcha } = require('../services/captcha');
 
 /** 登入失敗時記錄輸入的帳號 (只取前 50 字，不記錄密碼) */
 const typedAccount = (username) => String(username ?? '').trim().toLowerCase().slice(0, 50) || null;
 
 const router = express.Router();
 
+// 登入圖片驗證碼；每次顯示登入頁、登入失敗後都重新索取。enabled 為 false 時不需輸入
+router.get('/captcha', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  if (!resolveAuthConfig().captcha) return res.json({ enabled: false });
+  res.json({ enabled: true, ...createCaptcha() });
+});
+
 // 登入 (對應舊系統 User/login)
 router.post('/login', async (req, res) => {
-  const { username, password } = req.body || {};
+  const { username, password, captchaId, captcha } = req.body || {};
+  const config = resolveAuthConfig();
+  // 先檢查驗證碼 (驗證碼不論對錯都作廢)，錯誤不計入登入失敗次數，也不呼叫認證服務
+  if (config.captcha && !verifyCaptcha(captchaId, captcha)) {
+    throw new AppError(400, String(captcha ?? '').trim() ? '驗證碼錯誤或已過期，請重新輸入' : '請輸入驗證碼！', 'captcha');
+  }
   if (isBlocked(req.ip, username)) {
     writeLog({ category: 'auth', level: 'warn', action: '登入封鎖', actor: typedAccount(username), ip: req.ip, detail: '失敗次數過多' });
     throw new AppError(429, '登入失敗次數過多，請 15 分鐘後再試');
   }
 
-  const config = resolveAuthConfig();
   let result;
   try {
     result = await login(username, password, config);

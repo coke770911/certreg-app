@@ -15,8 +15,16 @@ const { AppError } = require('../errors');
 const { verifyAdCredentials, AdServiceError } = require('./ad-auth');
 const { getPermissionsFor, listImpersonators } = require('./permission-service');
 
-/** 解析登入帳號；格式不合法時拋出錯誤 */
-function parseLoginName(username, adminAccounts) {
+// 帳號不存在、密碼錯誤、代理登入格式不合法一律回應相同訊息，避免被用來探測帳號 (帳號列舉)
+const INVALID_LOGIN = '帳號或密碼輸入錯誤！';
+const invalidLogin = () => new AppError(401, INVALID_LOGIN);
+
+/**
+ * 解析登入帳號；格式不合法時拋出錯誤。
+ * 「學號/帳號」格式只檢查格式，是否具代理登入權限要等密碼驗證通過後才檢查 (見 login)，
+ * 以免回應內容透露哪些帳號是管理員。
+ */
+function parseLoginName(username) {
   const name = String(username ?? '').trim().toLowerCase();
   if (!name) throw new AppError(400, '請輸入學號！', 'username');
 
@@ -25,14 +33,12 @@ function parseLoginName(username, adminAccounts) {
     return { studentNo: name, account: name, impersonatedBy: null };
   }
   const [studentNo, account] = parts;
-  if (parts.length !== 2 || !studentNo || !adminAccounts.includes(account)) {
-    throw new AppError(403, '請勿使用不合法方式登入系統！！', 'username');
-  }
+  if (parts.length !== 2 || !studentNo || !account) throw invalidLogin();
   return { studentNo, account, impersonatedBy: account };
 }
 
 async function login(username, password, config) {
-  const who = parseLoginName(username, listImpersonators());
+  const who = parseLoginName(username);
   if (!password) throw new AppError(400, '請輸入密碼！', 'password');
 
   if (config.provider === 'ad') {
@@ -48,15 +54,23 @@ async function login(username, password, config) {
     }
     if (!verified.ok) {
       // 只記錄 AD 回應內容，不記錄密碼
-      console.warn(`[auth] AD 驗證未通過：帳號 ${who.account}，回應「${verified.result}」`);
-      throw new AppError(401, '帳號或密碼輸入錯誤！');
+      console.warn(`[auth] 認證服務驗證未通過：帳號 ${who.account}，回應「${verified.result}」`);
+      throw invalidLogin();
     }
+  }
+
+  // 密碼驗證通過後才檢查代理登入權限；沒有權限與密碼錯誤回應相同
+  if (who.impersonatedBy && !listImpersonators().includes(who.account)) {
+    console.warn(`[auth] 帳號 ${who.account} 沒有代理登入權限，拒絕代理登入 ${who.studentNo}`);
+    throw invalidLogin();
   }
 
   // 每次登入都將 v_UserData 差異更新至 UserData (沒有資料則新增)
   const user = await syncUserOnLogin(who.studentNo);
   if (!user) {
     console.warn(`[auth] v_UserData 與 UserData 皆查無此帳號：${who.studentNo}`);
+    // 開發模式不驗證密碼，查無帳號時與密碼錯誤回應相同；AD 模式已確認密碼正確，可明確告知
+    if (config.provider !== 'ad') throw invalidLogin();
     throw new AppError(404, '找不到您的資料！');
   }
 
@@ -90,4 +104,4 @@ function verifyToken(token, config) {
   return jwt.verify(token, config.jwtSecret, { algorithms: ['HS256'] });
 }
 
-module.exports = { parseLoginName, login, toSessionUser, signToken, verifyToken };
+module.exports = { INVALID_LOGIN, parseLoginName, login, toSessionUser, signToken, verifyToken };

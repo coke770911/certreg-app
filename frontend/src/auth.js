@@ -27,8 +27,9 @@ export function loadUser(force = false) {
   return pending.then(() => auth.user);
 }
 
-export async function login(username, password) {
-  const data = await apiPost('/auth/login', { username, password });
+/** 登入；captcha 為 { id, answer } (驗證碼未啟用時省略) */
+export async function login(username, password, captcha) {
+  const data = await apiPost('/auth/login', { username, password, captchaId: captcha?.id, captcha: captcha?.answer });
   auth.user = data.user;
   auth.loaded = true;
   return data.user;

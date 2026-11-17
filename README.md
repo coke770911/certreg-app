@@ -1,6 +1,6 @@
 # 證照報名系統 (certreg-app)
 
-> 目前版本：`0.1.5`（每次 push 前以 `npm run version:bump` 遞增，規則見下方「版本號」）
+> 目前版本：`0.1.6`（每次 push 前以 `npm run version:bump` 遞增，規則見下方「版本號」）
 
 將舊有 PHP 證照報名系統（`D:\project\lrs`，CodeIgniter 3）重構為 Node.js + Vue 3 架構。
 
@@ -136,8 +136,9 @@ pm2 save
 | `TEST_DB_*` | 測試資料庫連線（`development` / `test` 使用） |
 | `JWT_SECRET` / `JWT_EXPIRES_IN` | 登入憑證簽章金鑰與有效期限 |
 | `DB_ENCRYPT` / `DB_TRUST_SERVER_CERTIFICATE` / `DB_LOGGING` | 資料庫連線進階選項 |
-| `AUTH_PROVIDER` | `ad`（學校 AD 驗證）/ `dev`（開發用，任意密碼）；留空時正式環境為 `ad`、其餘為 `dev`，正式環境禁止 `dev` |
-| `AD_AUTH_URL` / `AD_AUTH_NAMESPACE` | 學校 AD 驗證服務 (SOAP) 網址與命名空間 |
+| `AUTH_PROVIDER` | `ad`（校內認證服務 REST API）/ `dev`（開發用，任意密碼）；留空時正式環境為 `ad`、其餘為 `dev`，正式環境禁止 `dev` |
+| `AUTH_API_URL` / `AUTH_API_KEY` | 校內認證服務 REST API 網址（須 https）與 API 金鑰（以 `X-Auth-Key` Header 送出；機密，只放 `.env`）。`AUTH_PROVIDER=ad` 時必填。舊的 SOAP 設定 `AD_AUTH_URL` / `AD_AUTH_NAMESPACE` 已停用，`.env` 仍保留時啟動會提示可移除 |
+| `LOGIN_CAPTCHA` | 登入是否需要圖片驗證碼（預設 `true`）；只有 `development` / `test` 可設為 `false`，正式環境一律需要 |
 | `TRUST_PROXY` | 部署於 IIS / Nginx 反向代理之後時設定（例如 `loopback`） |
 | `DATA_DIR` | 系統日誌與權限設定的存放目錄，留空為 `backend/data` |
 | `PAY_ACCOUNT_NAME` / `PAY_BANK_ACCOUNT` / `PAY_BANK_NAME` / `PAY_BANK_BRANCH` | 繳費單收款戶名、14 碼帳號、銀行與分行（不寫在程式碼中） |
@@ -145,7 +146,7 @@ pm2 save
 
 ## 登入與報名
 
-- **登入方式**：開發模式（`AUTH_PROVIDER=dev`）下，測試資料庫中的帳號可用任意密碼登入，虛構測試帳號：`d11000001`、`d11000002`、`d11000003`（學生）、`demo_staff`（職員）。正式環境一律呼叫學校 AD 驗證。
+- **登入方式**：開發模式（`AUTH_PROVIDER=dev`）下，測試資料庫中的帳號可用任意密碼登入，虛構測試帳號：`d11000001`、`d11000002`、`d11000003`（學生）、`demo_staff`（職員）。正式環境一律呼叫校內認證服務 REST API 驗證帳號密碼（`POST AUTH_API_URL`，內容 `{ Account, Password }`；回應 `Code: OK` 為通過、`INVALID_CREDENTIALS` 為帳密錯誤，其他如金鑰錯誤、IP 不在白名單、超過速率限制則顯示「系統認證出現錯誤」，原因寫入主控台）。本系統主機須在認證服務的 IP 白名單內。
 - **使用者資料同步**：每次登入都會將 `v_UserData`（校務系統檢視表）差異更新至 `UserData`：
   - `UserData` 沒有此帳號 → 新增；已有 → 只更新有差異的欄位
   - `v_UserData` 的值為 NULL／空白時不覆蓋既有資料；`us_phone`、`us_email` 不在檢視表中，保留原值
@@ -154,9 +155,16 @@ pm2 save
   - 同一帳號同時登入以資料列鎖定依序處理，不會重複新增
 - **報名聯絡資料記憶**：報名表的行動電話、電子郵件預設帶出 `UserData` 的 `us_phone`、`us_email`；沒有資料時改帶最近一次報名填寫的值。送出報名或修改報名時，填寫的電話與 Email 會回存至 `UserData`（只更新有變動的欄位），下次報名自動帶出。
 - **測試資料庫的 v_UserData**：可自行建立為連到校務系統的檢視表（VIEW）；`db:setup -- --reset` 偵測到檢視表時會保留不動，虛構帳號改直接寫入 `UserData`。
-- **開發環境以真實帳號測試 AD 登入**：`backend/.env` 設定 `AUTH_PROVIDER=ad` 後執行 `npm start`，以學校帳號密碼登入；失敗時伺服器主控台會顯示 `[auth]` 開頭的原因（不含密碼）。
+- **開發環境以真實帳號測試登入**：`backend/.env` 設定 `AUTH_PROVIDER=ad` 與 `AUTH_API_KEY` 後執行 `npm start`，以學校帳號密碼登入；失敗時伺服器主控台會顯示 `[auth]` 開頭的原因（不含密碼）。
 - **代理登入**：帳號輸入「學號/管理員帳號」並輸入管理員自己的密碼，即可代替學生報名。管理員帳號須在「權限設定」具備「代理學生登入」權限（原 `.env` 的 `ADMIN_ACCOUNTS` 已停用，首次啟動時會自動匯入）；代理登入會寫入系統日誌。
 - **登入憑證**：JWT 存於 `httpOnly`、`SameSite=Strict` Cookie，前端程式無法讀取；同一 IP + 帳號 15 分鐘內失敗 10 次即暫時封鎖。
+- **登入圖片驗證碼**：登入頁需輸入圖中 4 位數字（`GET /api/auth/captcha` 取得編號與 SVG 圖片，數字以路徑繪製並加干擾線，圖片中沒有可直接讀取的文字）。
+  - 答案只存在伺服器記憶體，每個驗證碼只能驗證一次（不論對錯都作廢），5 分鐘後過期；登入失敗或點圖片都會換一張。
+  - 伺服器先檢查驗證碼，錯誤時不呼叫認證服務、不計入登入失敗次數；驗證碼錯誤時保留已輸入的密碼。
+- **防帳號列舉**：帳號不存在、密碼錯誤、代理登入的帳號沒有代理權限、帳號格式不合法，一律回應「帳號或密碼輸入錯誤！」（HTTP 401），無法從回應判斷帳號是否存在或誰是管理員。
+  - 代理登入的權限改在密碼驗證通過後才檢查（舊系統密碼驗證前就回應「請勿使用不合法方式登入系統」，可用來試出管理員帳號）。
+  - 認證服務驗證通過但 `v_UserData`／`UserData` 都查無資料時仍顯示「找不到您的資料」（此時已確認密碼正確）；開發模式不驗證密碼，查無帳號同樣回應「帳號或密碼輸入錯誤」。
+  - 實際原因只寫入伺服器主控台與系統日誌。
 - **報名規則**（與舊系統相同）：報名截止前、未額滿、未重複報名才可報名；費用與考試名稱以報名當下的資料存入；應繳金額為所選項目與收費方案的費用（見管理端「各項目費用與優惠方案」）。
 - **相較舊系統的安全修正**：
   - 學號一律取自登入身分，無法替他人報名
@@ -229,7 +237,7 @@ pm2 save
 | 功能 | 舊系統位置 | 重構狀態 |
 | --- | --- | --- |
 | 證照考試列表（開放報名中）、考試詳細資訊 | `Registration/index`、`Apply/applyData` 考試資訊區塊 | ✅ 完成（`GET /api/exams`、`GET /api/exams/:id`） |
-| 登入（學校 AD 驗證）／登出、管理員代理登入 | `User/login`、`User/logout` | ✅ 完成（`/api/auth/login`、`logout`、`me`） |
+| 登入（校內認證服務 REST API）／登出、管理員代理登入 | `User/login`、`User/logout` | ✅ 完成（`/api/auth/login`、`logout`、`me`；新增圖片驗證碼 `captcha` 與防帳號列舉） |
 | 線上報名 | `Apply/applyData`、`Apply/addProcess` | ✅ 完成（`GET /api/applications/form/:examId`、`POST /api/applications`） |
 | 報名紀錄、修改、取消報名 | `Apply/historyList`、`detailed`、`editProcess`、`cancel` | ✅ 完成（`GET /api/applications/mine`、`GET/PUT /api/applications/:id`、`POST /api/applications/:id/cancel`） |
 | 列印繳費單 | `Apply/PrintPay` | ✅ 完成（`GET /api/applications/:id/slip`，頁面 `/my/applications/:id/slip`） |

@@ -7,7 +7,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { resolveAuthConfig } = require('../src/config/auth');
-const { parseLoginName } = require('../src/services/auth-service');
+const { INVALID_LOGIN, parseLoginName } = require('../src/services/auth-service');
+const captcha = require('../src/services/captcha');
 const { validateApplyInput } = require('../src/services/application-service');
 const limiter = require('../src/middleware/login-limiter');
 
@@ -16,11 +17,11 @@ const authEnv = (overrides = {}) => ({ APP_ENV: 'development', JWT_SECRET: SECRE
 
 test('登入設定：開發環境預設 dev，正式環境預設 ad 且禁止 dev', () => {
   assert.equal(resolveAuthConfig(authEnv()).provider, 'dev');
-  assert.throws(() => resolveAuthConfig(authEnv({ APP_ENV: 'production' })), /AD_AUTH_URL/);
-  assert.equal(
-    resolveAuthConfig(authEnv({ APP_ENV: 'production', AD_AUTH_URL: 'https://ad', AD_AUTH_NAMESPACE: 'ns/' })).adNamespace,
-    'ns'
-  );
+  assert.throws(() => resolveAuthConfig(authEnv({ APP_ENV: 'production' })), /AUTH_API_URL/);
+  const api = { AUTH_API_URL: 'https://auth.example/api.php', AUTH_API_KEY: 'k' };
+  assert.throws(() => resolveAuthConfig(authEnv({ APP_ENV: 'production', AUTH_API_URL: api.AUTH_API_URL })), /AUTH_API_KEY/);
+  assert.throws(() => resolveAuthConfig(authEnv({ APP_ENV: 'production', ...api, AUTH_API_URL: 'http://auth.example' })), /https/);
+  assert.equal(resolveAuthConfig(authEnv({ APP_ENV: 'production', ...api })).authApiKey, 'k');
   assert.throws(() => resolveAuthConfig(authEnv({ APP_ENV: 'production', AUTH_PROVIDER: 'dev' })), /禁止/);
   assert.throws(() => resolveAuthConfig(authEnv({ AUTH_PROVIDER: 'ldap' })), /AUTH_PROVIDER/);
 });
@@ -34,22 +35,51 @@ test('登入設定：JWT_SECRET 未設定、過短或為範本值時拒絕', () 
   );
 });
 
-test('登入帳號解析：一般帳號、管理員代理登入、非法格式', () => {
-  const admins = ['admin1'];
-  assert.deepEqual(parseLoginName(' D11000001 ', admins), {
+test('登入帳號解析：一般帳號、代理登入格式、非法格式 (錯誤訊息與密碼錯誤相同)', () => {
+  assert.deepEqual(parseLoginName(' D11000001 '), {
     studentNo: 'd11000001',
     account: 'd11000001',
     impersonatedBy: null,
   });
-  assert.deepEqual(parseLoginName('d11000001/ADMIN1', admins), {
+  // 是否有代理登入權限在密碼驗證後才檢查，解析時不透露
+  assert.deepEqual(parseLoginName('d11000001/SOMEONE'), {
     studentNo: 'd11000001',
-    account: 'admin1',
-    impersonatedBy: 'admin1',
+    account: 'someone',
+    impersonatedBy: 'someone',
   });
-  assert.throws(() => parseLoginName('d11000001/someone', admins), /不合法/);
-  assert.throws(() => parseLoginName('a/b/admin1', admins), /不合法/);
-  assert.throws(() => parseLoginName('/admin1', admins), /不合法/);
-  assert.throws(() => parseLoginName('', admins), /請輸入學號/);
+  for (const bad of ['a/b/admin1', '/admin1', 'd11000001/']) {
+    assert.throws(() => parseLoginName(bad), (err) => err.status === 401 && err.message === INVALID_LOGIN);
+  }
+  assert.throws(() => parseLoginName(''), /請輸入學號/);
+});
+
+test('登入設定：驗證碼預設開啟，只有非正式環境可關閉', () => {
+  assert.equal(resolveAuthConfig(authEnv()).captcha, true);
+  assert.equal(resolveAuthConfig(authEnv({ LOGIN_CAPTCHA: 'false' })).captcha, false);
+  const prodEnv = { APP_ENV: 'production', AUTH_API_URL: 'https://auth.example', AUTH_API_KEY: 'k', LOGIN_CAPTCHA: 'false' };
+  assert.equal(resolveAuthConfig(authEnv(prodEnv)).captcha, true);
+});
+
+test('驗證碼：四碼數字、只能驗證一次、過期失效', () => {
+  const now = Date.now();
+  const a = captcha.createCaptcha(now);
+  const code = captcha.peekCaptcha(a.id);
+  assert.match(code, /^\d{4}$/);
+  assert.match(a.image, /^data:image\/svg\+xml;base64,/);
+  // 圖片中不含答案文字
+  assert.ok(!Buffer.from(a.image.split(',')[1], 'base64').toString().includes(code));
+  assert.equal(captcha.verifyCaptcha(a.id, code, now), true);
+  assert.equal(captcha.verifyCaptcha(a.id, code, now), false);
+
+  const b = captcha.createCaptcha(now);
+  const wrong = String((Number(captcha.peekCaptcha(b.id)) + 1) % 10000).padStart(4, '0');
+  assert.equal(captcha.verifyCaptcha(b.id, wrong, now), false);
+  assert.equal(captcha.verifyCaptcha(b.id, captcha.peekCaptcha(b.id), now), false);
+
+  const c = captcha.createCaptcha(now);
+  assert.equal(captcha.verifyCaptcha(c.id, captcha.peekCaptcha(c.id), now + captcha.TTL_MS + 1), false);
+  assert.equal(captcha.verifyCaptcha(undefined, '1234', now), false);
+  assert.equal(captcha.verifyCaptcha({}, '1234', now), false);
 });
 
 test('登入失敗次數限制：達上限封鎖，成功後清除', () => {
