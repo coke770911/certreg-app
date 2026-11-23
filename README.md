@@ -1,6 +1,6 @@
 # 證照報名系統 (certreg-app)
 
-> 目前版本：`0.1.6`（每次 push 前以 `npm run version:bump` 遞增，規則見下方「版本號」）
+> 目前版本：`0.1.7`（每次 push 前以 `npm run version:bump` 遞增，規則見下方「版本號」）
 
 將舊有 PHP 證照報名系統（`D:\project\lrs`，CodeIgniter 3）重構為 Node.js + Vue 3 架構。
 
@@ -92,9 +92,9 @@ certreg-app/
 | `npm --prefix backend test` | 執行後端測試（含正式環境鎖定測試） |
 | `npm --prefix backend run db:check` | 唯讀驗證資料庫連線與帳號權限 |
 | `npm --prefix backend run db:setup` | 建立測試資料庫結構與虛構資料（加 `-- --reset` 重建；正式環境拒絕執行） |
-| `npm --prefix backend run db:inspect` | 以唯讀方式盤點正式資料庫的資料表結構 |
-| `npm --prefix backend run db:migrate-test` | 將 `backend/database/pending-production-changes.sql` 套用到測試資料庫（以 `GO` 分段、可重複執行，含舊資料回填；正式環境拒絕執行）。`db:copy-prod` 之後需再執行一次 |
-| `npm --prefix backend run db:copy-prod` | 預覽正式／測試資料庫各表筆數；加 `-- --yes` 會清空測試資料表，改寫入正式資料（正式庫只 SELECT；單一交易、保留原編號、寫入後逐筆比對；不複製 v_UserData；正式庫還沒有 `RegPrice` 時會清空測試庫的價格資料，所有考試改以原價計算）。複製後測試庫含真實個資，請勿外流 |
+| `npm --prefix backend run db:inspect` | 以唯讀方式盤點舊正式資料庫（`LEGACY_DB_*`）的資料表結構 |
+| `npm --prefix backend run db:migrate-test` | 將 `backend/database/pending-production-changes.sql` 套用到測試資料庫（以 `GO` 分段、可重複執行，含舊資料回填；正式環境拒絕執行）。`db:sync-legacy` 會自動套用，通常不需另外執行 |
+| `npm --prefix backend run db:sync-legacy` | 把舊正式資料庫（`LEGACY_DB_*`，唯讀）的資料一次同步到**新正式資料庫與測試資料庫**。不加參數只預覽各表筆數；執行需加 `-- --yes --confirm=<新正式資料庫名稱>`；`--target=test` 或 `--target=production` 只處理其中一個（只同步測試庫時只需 `--yes`）。流程：結構檢查（測試庫自動套用 `pending-production-changes.sql`；新正式庫缺欄位時拒絕）→ 舊資料只讀一次 → 各目標單一交易清空後寫入、保留原編號、逐筆比對 → 回填新欄位（例如 `ap_le_id`）。不複製 v_UserData；舊正式庫沒有 `RegPrice` 時清空目標的價格資料，所有考試改以原價計算。**會以舊資料取代目標的全部資料，新正式庫只應在上線切換前執行**；同步後測試庫含真實個資，請勿外流 |
 
 ## 以 PM2 常駐執行（正式機）
 
@@ -132,7 +132,8 @@ pm2 save
 | --- | --- |
 | `APP_ENV` | `development` / `test` / `production`，未設定或不合法時拒絕啟動 |
 | `PORT` | 網站與 API 共用的通訊埠（必填）。以 `.env` 為準，外部的 PORT 環境變數會被忽略並於啟動時提示 |
-| `PROD_DB_*` | 正式資料庫連線（僅 `production` 使用） |
+| `PROD_DB_*` | 新正式資料庫連線（僅 `production` 使用） |
+| `LEGACY_DB_*` | 舊正式資料庫（舊 PHP 系統上線中的資料庫）連線，**唯讀**，網站不使用，只供 `db:sync-legacy`、`db:inspect` 查詢與同步；與測試或新正式資料庫相同時拒絕執行 |
 | `TEST_DB_*` | 測試資料庫連線（`development` / `test` 使用） |
 | `JWT_SECRET` / `JWT_EXPIRES_IN` | 登入憑證簽章金鑰與有效期限 |
 | `DB_ENCRYPT` / `DB_TRUST_SERVER_CERTIFICATE` / `DB_LOGGING` | 資料庫連線進階選項 |
@@ -185,7 +186,7 @@ pm2 save
   - **各項目費用與優惠方案**：價格存於新資料表 `RegPrice`（正式資料庫待建，見下方），每列為「考試 × 項目 × 方案」。
     - 原價：每個項目可另設原價；留空或與考試費用相同時不存，沿用考試費用 `rg_money`。
     - 優惠方案：同一個項目可有多個優惠方案（名稱 + 費用，例如「本校生優惠 1,800」），名稱不可為「原價」、同項目內不可重複。
-    - 沒有 `RegPrice` 資料的考試（包含由正式資料庫複製過來的舊考試）一律以原價（考試費用）計算，沒有優惠方案。
+    - 沒有 `RegPrice` 資料的考試（包含由舊正式資料庫同步過來的舊考試）一律以原價（考試費用）計算，沒有優惠方案。
     - 學生報名時選擇項目後，若該項目有優惠方案會出現「收費方案」讓學生自選；應繳金額存入 `Apply.ap_rg_money`，方案名稱存入 `Apply.ap_discount`（原價為 NULL）。承辦人員在繳費處理名單與匯出的「收費方案」欄核對資格。
     - 之後調整價格或移除方案不影響已報名者；學生沒有改選時保留原本的金額與方案。
     - 考試列表在各項目原價不同時顯示費用範圍。
@@ -228,9 +229,10 @@ pm2 save
 
 1. **正式資料庫結構絕不更動**：`APP_ENV=production` 時，系統在 SQL 送出前攔截所有 `sync()`、`drop()`、`CREATE` / `ALTER` / `DROP` / `TRUNCATE` / `sp_rename`，並拋出 `ProductionGuardError`。
 2. **僅測試資料庫允許建表**：建表一律透過 `safeSync()`，正式環境會直接拒絕。
-3. **防止誤連**：若 `TEST_DB_*` 與 `PROD_DB_*` 指向同一個資料庫，系統拒絕啟動。
-4. **帳號權限**：程式層鎖定只能約束本應用程式，正式環境建議改用僅具 `db_datareader`（必要時加 `db_datawriter`）權限的帳號，避免使用 `sa` 或 `db_owner`。
-5. **時區**：舊資料表的 `datetime` 欄位為台灣當地時間，系統統一以 `Asia/Taipei` 讀寫。
+3. **防止誤連**：若 `TEST_DB_*` 與 `PROD_DB_*` 指向同一個資料庫，系統拒絕啟動；網站使用的資料庫與 `LEGACY_DB_*` 相同時也拒絕啟動。
+4. **舊正式資料庫不可修改**：`LEGACY_DB_*` 一律以唯讀鎖定連線（`createLegacySequelize()`），只允許 `SELECT` / `WITH` 查詢，`INSERT` / `UPDATE` / `DELETE` / `MERGE` / `SELECT … INTO` / `EXEC` / `SET` / DDL 與交易都在送出前拋出 `ReadOnlyGuardError`；只能查詢並同步到新正式或測試資料庫。建議使用僅具 `db_datareader` 權限的帳號。
+5. **帳號權限**：程式層鎖定只能約束本應用程式，正式環境建議改用僅具 `db_datareader`（必要時加 `db_datawriter`）權限的帳號，避免使用 `sa` 或 `db_owner`。
+6. **時區**：舊資料表的 `datetime` 欄位為台灣當地時間，系統統一以 `Asia/Taipei` 讀寫。
 
 ## 舊系統功能對照
 
@@ -274,10 +276,10 @@ pm2 save
 
 | 資料表.欄位 | 型別 | 用途 | 正式庫 |
 | --- | --- | --- | --- |
-| `LicenseGroup.lg_is_hidden` | `BIT NOT NULL DEFAULT 0` | 證照分類隱藏（取代刪除） | ❌ 尚未補上 |
-| `Apply.ap_le_id` | `INT NULL` | 報名紀錄的證照項目編號（`License.le_id`）；SQL 會回填舊紀錄：同一場考試中名稱唯一相符者才填入，對應不到的維持 NULL | ❌ 尚未補上 |
-| `RegPrice`（資料表） | 見 SQL | 考試項目價格（原價與優惠方案）；沒有資料時以考試費用為原價 | ❌ 尚未建立 |
-| `Apply.ap_discount` | `NVARCHAR(50) NULL` | 報名選擇的優惠方案名稱；NULL 表示原價 | ❌ 尚未補上 |
+| `LicenseGroup.lg_is_hidden` | `BIT NOT NULL DEFAULT 0` | 證照分類隱藏（取代刪除） | ✅ 新正式庫 CertregApp 已補上（2026-11-23 確認） |
+| `Apply.ap_le_id` | `INT NULL` | 報名紀錄的證照項目編號（`License.le_id`）；SQL 會回填舊紀錄：同一場考試中名稱唯一相符者才填入，對應不到的維持 NULL | ✅ 新正式庫 CertregApp 已補上（2026-11-23 確認） |
+| `RegPrice`（資料表） | 見 SQL | 考試項目價格（原價與優惠方案）；沒有資料時以考試費用為原價 | ✅ 新正式庫 CertregApp 已補上（2026-11-23） |
+| `Apply.ap_discount` | `NVARCHAR(50) NULL` | 報名選擇的優惠方案名稱；NULL 表示原價 | ✅ 新正式庫 CertregApp 已補上（2026-11-23） |
 
 尚未補上時，伺服器啟動會顯示「資料庫缺少欄位」警告並寫入系統日誌，「系統資訊」頁也會顯示紅色提醒；此時證照分類（新增考試、證照項目頁）與所有報名相關功能（報名、我的報名、繳費、成績、匯出）都會出錯，**上線前必須先補上**。
 

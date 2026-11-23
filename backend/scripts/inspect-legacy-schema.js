@@ -5,7 +5,7 @@
  *
  * 用法：node scripts/inspect-legacy-schema.js
  *
- * 不論 .env 的 APP_ENV 為何，一律以「正式環境鎖定」模式連線正式資料庫，
+ * 以唯讀鎖定連線舊正式資料庫 (LEGACY_DB_*)，
  * 只查詢系統檢視表 (INFORMATION_SCHEMA / sys.*)，不讀取任何個人資料。
  * 結果輸出至 docs/legacy-schema.json，作為建立 Sequelize 模型的依據。
  */
@@ -13,13 +13,20 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { QueryTypes } = require('sequelize');
-const { createSequelize } = require('../src/config/database');
+const { createLegacySequelize } = require('../src/config/database');
 
 const OUTPUT = path.resolve(__dirname, '../docs/legacy-schema.json');
 
 async function main() {
-  // 強制使用正式環境設定，確保 DDL 鎖定生效
-  const sequelize = createSequelize({ ...process.env, APP_ENV: 'production' });
+  // 舊正式資料庫唯讀連線：只允許 SELECT
+  let sequelize;
+  try {
+    sequelize = createLegacySequelize(process.env, []);
+  } catch (err) {
+    console.error(`✖ 設定錯誤：${err.message}`);
+    process.exitCode = 1;
+    return;
+  }
   const select = (sql) => sequelize.query(sql, { type: QueryTypes.SELECT });
 
   try {

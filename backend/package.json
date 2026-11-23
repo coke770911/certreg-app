@@ -1,6 +1,6 @@
 {
   "name": "lrs-backend",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "private": true,
   "description": "證照報名系統 (LRS) 重構 - Node.js + Express 後端",
   "main": "src/server.js",
@@ -11,7 +11,7 @@
     "test": "node --test test/*.test.js",
     "db:setup": "node scripts/setup-test-db.js",
     "db:inspect": "node scripts/inspect-legacy-schema.js",
-    "db:copy-prod": "node scripts/copy-prod-to-test.js",
+    "db:sync-legacy": "node scripts/sync-legacy-db.js",
     "db:migrate-test": "node scripts/migrate-test-db.js"
   },
   "engines": {

@@ -12,9 +12,13 @@ const assert = require('node:assert/strict');
 const { DataTypes } = require('sequelize');
 const {
   ProductionGuardError,
+  ReadOnlyGuardError,
   containsDdl,
+  isReadOnlySql,
   resolveDbConfig,
+  resolveLegacyDbConfig,
   createSequelize,
+  createLegacySequelize,
   safeSync,
 } = require('../src/config/database');
 
@@ -30,6 +34,11 @@ const fakeEnv = (overrides = {}) => ({
   TEST_DB_NAME: 'guard_test',
   TEST_DB_USER: 'u',
   TEST_DB_PASSWORD: 'p',
+  LEGACY_DB_HOST: '127.0.0.1',
+  LEGACY_DB_PORT: '1',
+  LEGACY_DB_NAME: 'guard_legacy',
+  LEGACY_DB_USER: 'u',
+  LEGACY_DB_PASSWORD: 'p',
   ...overrides,
 });
 
@@ -108,5 +117,67 @@ test('開發/測試環境：不套用鎖定，允許 sync', async () => {
     } finally {
       await sequelize.close();
     }
+  }
+});
+
+test('isReadOnlySql：只允許 SELECT / WITH，字串與識別字中的關鍵字不影響判斷', () => {
+  for (const sql of [
+    'SELECT 1',
+    '  with x as (select 1 a) select * from x',
+    "SELECT * FROM t WHERE n = N'DELETE; DROP TABLE x'",
+    'SELECT [update], [set] FROM [dbo].[Apply]',
+  ]) {
+    assert.equal(isReadOnlySql(sql), true, sql);
+  }
+  for (const sql of [
+    'INSERT INTO t VALUES (1)',
+    'UPDATE t SET a = 1',
+    'DELETE FROM t',
+    'SELECT * INTO t2 FROM t',
+    'SELECT 1; DELETE FROM t',
+    '/* SELECT */ DELETE FROM t',
+    'EXEC sp_who',
+    'SET IDENTITY_INSERT t ON',
+    'MERGE t USING s ON 1 = 1 WHEN MATCHED THEN DELETE;',
+    'TRUNCATE TABLE t',
+    undefined,
+  ]) {
+    assert.equal(isReadOnlySql(sql), false, String(sql));
+  }
+});
+
+test('舊正式資料庫：與同步目標或網站使用的資料庫相同時拒絕', () => {
+  assert.equal(resolveLegacyDbConfig(fakeEnv()).database, 'guard_legacy');
+  assert.throws(() => resolveLegacyDbConfig(fakeEnv({ LEGACY_DB_NAME: 'GUARD_TEST' })), /TEST_DB_/);
+  assert.throws(() => resolveLegacyDbConfig(fakeEnv({ LEGACY_DB_NAME: 'guard_prod' })), /PROD_DB_/);
+  // 只同步到測試資料庫時，舊正式與新正式設定相同不影響
+  assert.equal(resolveLegacyDbConfig(fakeEnv({ LEGACY_DB_NAME: 'guard_prod' }), ['TEST_DB_']).database, 'guard_prod');
+  assert.throws(() => resolveLegacyDbConfig(fakeEnv({ LEGACY_DB_PASSWORD: '' })), /LEGACY_DB_PASSWORD/);
+
+  assert.throws(() => resolveDbConfig(fakeEnv({ LEGACY_DB_NAME: 'guard_prod' })), /LEGACY_DB_/);
+  assert.throws(() => resolveDbConfig(fakeEnv({ APP_ENV: 'development', LEGACY_DB_NAME: 'guard_test' })), /LEGACY_DB_/);
+  // 未設定舊正式資料庫不影響網站啟動
+  assert.equal(resolveDbConfig(fakeEnv({ LEGACY_DB_HOST: '', LEGACY_DB_NAME: '' })).database, 'guard_prod');
+});
+
+test('舊正式資料庫：寫入、DDL、交易、sync 全部在送出前攔截', async () => {
+  const db = createLegacySequelize(fakeEnv());
+  const isReadOnlyError = (err) => err instanceof ReadOnlyGuardError;
+  try {
+    assert.equal(db.lrsConfig.readOnly, true);
+    // 預先指定版本，避免連線時送出含 DECLARE / SET 的版本查詢而被鎖定攔下 (會導致連線卡住)
+    assert.notEqual(db.options.databaseVersion, 0);
+    for (const sql of ['DELETE FROM Apply', 'UPDATE Apply SET ap_is_del = 1', 'INSERT INTO License (le_name) VALUES (1)', 'DROP TABLE Apply']) {
+      await assert.rejects(db.query(sql), isReadOnlyError, sql);
+    }
+    await assert.rejects(db.transaction(async () => {}), isReadOnlyError);
+    await assert.rejects(db.sync(), isReadOnlyError);
+    await assert.rejects(db.drop(), isReadOnlyError);
+    const Model = db.define('GuardLegacy', { name: DataTypes.STRING });
+    await assert.rejects(Model.create({ name: 'x' }), isReadOnlyError);
+    // SELECT 不被攔截 (會因假連線失敗，但不是鎖定錯誤)
+    await assert.rejects(db.query('SELECT 1'), (err) => !isReadOnlyError(err));
+  } finally {
+    await db.close();
   }
 });

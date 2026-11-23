@@ -18,9 +18,13 @@ const REQUIRED_COLUMNS = [
   { table: 'Apply', column: 'ap_discount', purpose: '報名選擇的優惠方案' },
 ];
 
-/** 回傳目前資料庫缺少的欄位 */
-async function findMissingColumns() {
-  const rows = await sequelize.query(
+/**
+ * 回傳資料庫缺少的欄位
+ * @param {import('sequelize').Sequelize} [db] 要檢查的連線，預設為網站使用的資料庫
+ * @returns {Promise<typeof REQUIRED_COLUMNS>}
+ */
+async function findMissingColumns(db = sequelize) {
+  const rows = await db.query(
     `SELECT TABLE_NAME AS tableName, COLUMN_NAME AS columnName FROM INFORMATION_SCHEMA.COLUMNS
      WHERE TABLE_SCHEMA = 'dbo' AND TABLE_NAME IN (:tables)`,
     { type: QueryTypes.SELECT, replacements: { tables: [...new Set(REQUIRED_COLUMNS.map((c) => c.table))] } }
